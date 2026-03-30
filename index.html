@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>むらせ歯科 スタッフポータル</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/Recharts.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: #F4F6FB; font-family: 'Hiragino Sans', 'Noto Sans JP', sans-serif; }
+    #root { max-width: 430px; margin: 0 auto; min-height: 100vh; }
+    input, textarea, button { font-family: inherit; }
+    textarea { font-family: inherit; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } = Recharts;
+
+
+
+
+const SCREENS = { HOME:"home", NOTICE:"notice", CLOSING:"closing", MANUAL:"manual", SHIFT:"shift", STAFF:"staff", SALES:"sales", REQUEST:"request" };
+// ▼ GASデプロイ後にURLをここに貼り付ける
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwMiEXf38Pqtzfjx4h2wPD0oM6ti84hELwPTwO335Qbz1IaQow9f40GFCyKuaHve523GQ/exec";
+
+const ROLES = ["院長","歯科医師","歯科衛生士","歯科助手","受付","その他"];
+const AVATAR_COLORS = ["#6C63FF","#FF6584","#43C6AC","#F7971E","#4facfe","#a18cd1","#f6416c","#00b09b","#f093fb","#4481eb"];
+const SHIFT_COLORS = { "09:00-18:00":{bg:"#EEF4FF",text:"#4A6FE3",label:"全日"}, "09:00-14:00":{bg:"#FFF0F9",text:"#E34AB0",label:"午前"}, "13:00-18:00":{bg:"#FFF8E8",text:"#E38F4A",label:"午後"}, "休":{bg:"#F5F5F5",text:"#BBBBBB",label:"休"} };
+const CAT_COLORS = { "診療":"#6C63FF","受付":"#F7971E","滅菌・感染":"#43C6AC","緊急対応":"#FF6584","その他":"#4facfe" };
+const TAG_COLORS = { "全体":"#6C63FF","衛生":"#43C6AC","機器":"#F7971E","受付":"#FF6584" };
+
+const INIT_STAFF = [
+  { id:1, name:"村瀬雅典", role:"院長", color:"#6C63FF", admin:true },
+  { id:2, name:"田中", role:"歯科衛生士", color:"#FF6584", admin:false },
+  { id:3, name:"佐藤", role:"歯科衛生士", color:"#43C6AC", admin:false },
+  { id:4, name:"鈴木", role:"受付", color:"#F7971E", admin:false },
+  { id:5, name:"山田", role:"歯科助手", color:"#4facfe", admin:false },
+  { id:6, name:"林", role:"歯科助手", color:"#a18cd1", admin:false },
+];
+
+const NOTICES = [
+  { id:1, title:"4月スタッフミーティング", author:"村瀬雅典", date:"3/28", important:true, tag:"全体", content:"4月5日(土) 18:00より院内にてスタッフミーティングを行います。全員参加でお願いします。" },
+  { id:2, title:"院内感染予防マニュアル更新", author:"田中", date:"3/25", important:false, tag:"衛生", content:"感染予防マニュアルを最新ガイドラインに合わせて更新しました。必ず確認してください。" },
+  { id:3, title:"4月の診療時間変更", author:"村瀬雅典", date:"3/18", important:true, tag:"受付", content:"4月1日(水)より水曜午後の診療時間が変更になります。16:00終了→17:30終了となります。" },
+];
+
+const INIT_MANUALS = [
+  { id:1, category:"診療", title:"初診問診の流れ", icon:"📋", updated:"2025/03", color:"#6C63FF", content:"", notes:"" },
+  { id:2, category:"診療", title:"X線撮影手順", icon:"🦷", updated:"2025/02", color:"#6C63FF", content:"", notes:"" },
+  { id:3, category:"滅菌・感染", title:"器具滅菌マニュアル", icon:"🧼", updated:"2025/03", color:"#43C6AC", content:"", notes:"" },
+  { id:4, category:"受付", title:"電話対応マニュアル", icon:"📞", updated:"2025/01", color:"#F7971E", content:"", notes:"" },
+  { id:5, category:"緊急対応", title:"医療緊急時の対応", icon:"🚨", updated:"2025/01", color:"#FF6584", content:"", notes:"" },
+];
+
+// ── 売上データ（サンプル） ──
+const MONTHLY_SALES = [
+  { month:"10月", revenue:3820, target:4000, patients:312 },
+  { month:"11月", revenue:4150, target:4000, patients:341 },
+  { month:"12月", revenue:3650, target:4000, patients:298 },
+  { month:"1月",  revenue:4320, target:4200, patients:358 },
+  { month:"2月",  revenue:4080, target:4200, patients:334 },
+  { month:"3月",  revenue:4560, target:4200, patients:374 },
+];
+
+const CATEGORY_SALES = [
+  { name:"保険診療", value:2680, color:"#6C63FF" },
+  { name:"インプラント", value:860, color:"#FF6584" },
+  { name:"矯正", value:520, color:"#43C6AC" },
+  { name:"審美・自費", value:500, color:"#F7971E" },
+];
+
+const ANNUAL_GOALS = [
+  { label:"年間売上", current:4560, target:5000, unit:"万円", icon:"💴", color:"#6C63FF" },
+  { label:"新患数", current:38, target:50, unit:"人/月", icon:"🆕", color:"#FF6584" },
+  { label:"患者満足度", current:4.6, target:4.8, unit:"/ 5.0", icon:"⭐", color:"#F7971E" },
+  { label:"リコール率", current:68, target:75, unit:"%", icon:"🔄", color:"#43C6AC" },
+];
+
+function generateShifts(staffList) {
+  const names = staffList.filter(s => !s.admin).map(s => s.name);
+  const patterns = ["09:00-18:00","09:00-14:00","13:00-18:00","休"];
+  const dayNames = ["日","月","火","水","木","金","土"];
+  return Array.from({ length: 28 }, (_, i) => {
+    const date = new Date(2026, 3, 6 + i);
+    const dow = date.getDay();
+    const isSunday = dow === 0, isSat = dow === 6;
+    const shifts = {};
+    names.forEach(name => {
+      if (isSunday) { shifts[name] = "休"; return; }
+      if (isSat && Math.random() < 0.4) { shifts[name] = "休"; return; }
+      const r = Math.random() * 10;
+      shifts[name] = r < 5 ? patterns[0] : r < 7 ? patterns[1] : r < 8 ? patterns[2] : patterns[3];
+    });
+    return { label:`${date.getMonth()+1}/${date.getDate()}(${dayNames[dow]})`, dow, isSunday, isSat, shifts };
+  });
+}
+
+const avatarChar = name => name.slice(0, 1);
+const fmt = n => n >= 10000 ? `${(n/10000).toFixed(1)}万` : n.toLocaleString();
+
+function App() {
+  const [screen, setScreen] = useState(SCREENS.HOME);
+  const [currentUser] = useState(INIT_STAFF[0]);
+  const isAdmin = currentUser.admin;
+
+  const [staffList, setStaffList] = useState(INIT_STAFF);
+  const [staffEditTarget, setStaffEditTarget] = useState(null);
+  const [showAddStaff, setShowAddStaff] = useState(false);
+  const [newName, setNewName] = useState(""); const [newRole, setNewRole] = useState("歯科衛生士");
+  const [newColor, setNewColor] = useState(AVATAR_COLORS[2]); const [newAdmin, setNewAdmin] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const [selectedNotice, setSelectedNotice] = useState(null);
+  const [selectedManual, setSelectedManual] = useState(null);
+  const [manuals, setManuals] = useState(INIT_MANUALS);
+  const [manualCategory, setManualCategory] = useState("全て");
+  const [shiftWeek, setShiftWeek] = useState(0);
+  const [shifts] = useState(() => generateShifts(INIT_STAFF));
+  const weeks = [shifts.slice(0,7), shifts.slice(7,14), shifts.slice(14,21), shifts.slice(21,28)];
+  const staffNames = staffList.filter(s => !s.admin).map(s => s.name);
+
+  // Sales edit state (admin only)
+  const [salesData, setSalesData] = useState(MONTHLY_SALES);
+  const [goals, setGoals] = useState(ANNUAL_GOALS);
+  const [editGoal, setEditGoal] = useState(null);
+  const [salesTab, setSalesTab] = useState("overview"); // overview | monthly | category
+
+  const [apiKey, setApiKey] = useState("");
+  const [reqStaff, setReqStaff] = useState("田中");
+  const [reqYear, setReqYear] = useState(2026);
+  const [reqMonth, setReqMonth] = useState(4);
+  const [reqDays, setReqDays] = useState({}); // {date: type}
+  const [reqSubmitting, setReqSubmitting] = useState(false);
+  const [reqResult, setReqResult] = useState(null);
+  const [closingDate, setClosingDate] = useState("2026-03-29");
+  const [closingText, setClosingText] = useState("");
+  const [closingLoading, setClosingLoading] = useState(false);
+  const [closingResult, setClosingResult] = useState(null);
+  const [closingHistory, setClosingHistory] = useState([]);
+
+  const categories = ["全て", ...new Set(manuals.map(m => m.category))];
+  const filteredManuals = manualCategory === "全て" ? manuals : manuals.filter(m => m.category === manualCategory);
+  const latestMonth = salesData[salesData.length - 1];
+  const prevMonth = salesData[salesData.length - 2];
+  const momChange = ((latestMonth.revenue - prevMonth.revenue) / prevMonth.revenue * 100).toFixed(1);
+
+  const addStaff = () => {
+    if (!newName.trim()) return;
+    setStaffList(prev => [...prev, { id:Date.now(), name:newName.trim(), role:newRole, color:newColor, admin:newAdmin }]);
+    setNewName(""); setNewRole("歯科衛生士"); setNewColor(AVATAR_COLORS[2]); setNewAdmin(false); setShowAddStaff(false);
+  };
+  const deleteStaff = id => { setStaffList(prev => prev.filter(s => s.id !== id)); setDeleteConfirm(null); };
+  const toggleAdmin = id => setStaffList(prev => prev.map(s => s.id === id ? {...s, admin:!s.admin} : s));
+  const saveEdit = () => { if (!staffEditTarget) return; setStaffList(prev => prev.map(s => s.id === staffEditTarget.id ? staffEditTarget : s)); setStaffEditTarget(null); };
+
+  const generateManual = async () => {
+    if (!closingText.trim()) return;
+    setClosingLoading(true); setClosingResult(null);
+    try {
+      const prompt = `あなたは歯科医院スタッフ向けマニュアル作成の専門家です。終礼メモをもとに、以下のJSON形式のみで返してください。説明・前置き・コードブロック記号は不要です。JSONだけ返してください。\n\n終礼日: ${closingDate}\n終礼メモ: ${closingText}\n\n{"title":"タイトル","category":"診療","points":["要点1","要点2","要点3"],"notes":"注意事項またはnull"}\n\ncategoryは診療・受付・滅菌・感染・緊急対応・その他のいずれか。`;
+
+      // GAS経由でAnthropicAPIを呼ぶ
+      const response = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "ai_manual", prompt })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        setClosingResult({ error: `APIエラー: ${data.error}` });
+        setClosingLoading(false);
+        return;
+      }
+
+      const aiText = (data.text || "").trim();
+      const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        setClosingResult({ error: `JSONなし。AIの返答: ${aiText.slice(0, 200)}` });
+        setClosingLoading(false);
+        return;
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      setClosingResult(parsed);
+
+    } catch(e) {
+      setClosingResult({ error: `例外: ${e.name}: ${e.message}` });
+    }
+    setClosingLoading(false);
+  };
+  const addToManual = () => {
+    if (!closingResult||closingResult.error) return;
+    setManuals(prev => [{ id:Date.now(), category:closingResult.category||"その他", title:closingResult.title, icon:"📝", updated:closingDate.slice(0,7).replace("-","/"), color:CAT_COLORS[closingResult.category]||"#4facfe", content:closingResult.points?.join("\n")||"", notes:closingResult.notes||"", fromClosing:true }, ...prev]);
+    setClosingHistory(prev => [{ id:Date.now(), date:closingDate, text:closingText, manual:closingResult }, ...prev]);
+    setClosingText(""); setClosingResult(null); setScreen(SCREENS.MANUAL);
+  };
+
+  // シフト希望提出
+  const submitRequest = async () => {
+    if (Object.keys(reqDays).length === 0) return;
+    setReqSubmitting(true); setReqResult(null);
+    try {
+      const requests = Object.entries(reqDays).map(([date, type]) => ({ date, type }));
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          action: "save_shift_request",
+          data: {
+            name: reqStaff,
+            year: reqYear,
+            month: reqMonth,
+            requests,
+            submittedAt: new Date().toISOString()
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setReqResult({ success: true, message: data.message });
+      setReqDays({});
+    } catch(e) {
+      setReqResult({ success: false, message: `エラー: ${e.message}` });
+    }
+    setReqSubmitting(false);
+  };
+
+  const navItems = [
+    { icon:"🏠", label:"ホーム", s:SCREENS.HOME, color:"#6C63FF" },
+    { icon:"📊", label:"業績", s:SCREENS.SALES, color:"#43C6AC" },
+    { icon:"🌙", label:"終礼", s:SCREENS.CLOSING, color:"#4facfe" },
+    { icon:"📅", label:"シフト", s:SCREENS.SHIFT, color:"#F7971E" },
+    { icon:"✋", label:"希望申請", s:SCREENS.REQUEST, color:"#FF6584" },
+  ];
+
+  const go = s => { setScreen(s); setSelectedNotice(null); setSelectedManual(null); };
+  const Btn = ({ children, onClick, style }) => <button onClick={onClick} style={{ border:"none", cursor:"pointer", ...style }}>{children}</button>;
+
+  // Progress bar component
+  const ProgressBar = ({ current, target, color, height=8 }) => {
+    const pct = Math.min(Math.round(current / target * 100), 100);
+    return (
+      <div style={{ background:"#F0F2F8", borderRadius:99, overflow:"hidden", height }}>
+        <div style={{ width:`${pct}%`, height:"100%", background:`linear-gradient(90deg, ${color}, ${color}99)`, borderRadius:99, transition:"width .6s ease" }} />
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ fontFamily:"'Hiragino Sans','Noto Sans JP',sans-serif", background:"#F4F6FB", minHeight:"100vh", maxWidth:430, margin:"0 auto", display:"flex", flexDirection:"column" }}>
+
+      {/* Header */}
+      <div style={{ background:"linear-gradient(120deg,#6C63FF,#3EC6E0)", padding:"14px 20px 12px", color:"white", boxShadow:"0 4px 20px rgba(108,99,255,.25)", position:"sticky", top:0, zIndex:100 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ fontSize:10, opacity:.8, letterSpacing:".1em" }}>Uniba-dori Murase Dental</div>
+            <div style={{ fontSize:17, fontWeight:800 }}>スタッフポータル</div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ position:"relative" }}>
+              <span style={{ fontSize:22 }}>🔔</span>
+              <div style={{ position:"absolute", top:-2, right:-2, width:10, height:10, background:"#FF6584", borderRadius:"50%", border:"2px solid white" }} />
+            </div>
+            <Btn onClick={() => go(SCREENS.STAFF)} style={{ width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,.25)", fontSize:15, fontWeight:800, color:"white", border:"2px solid rgba(255,255,255,.5)" }}>
+              {avatarChar(currentUser.name)}
+            </Btn>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex:1, overflow:"auto", paddingBottom:76 }}>
+
+        {/* ===== HOME ===== */}
+        {screen === SCREENS.HOME && (
+          <div style={{ padding:16 }}>
+            <div style={{ background:"linear-gradient(135deg,#6C63FF22,#3EC6E022)", borderRadius:18, padding:"16px 20px", marginBottom:18, border:"1px solid #6C63FF22" }}>
+              <div style={{ fontSize:13, color:"#6C63FF", fontWeight:700 }}>☀️ おはようございます</div>
+              <div style={{ fontSize:20, fontWeight:800, color:"#1A1A3A", marginTop:2 }}>{currentUser.name}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
+                <div style={{ fontSize:12, color:"#7A7A9A" }}>2026年3月29日（日）· 本日 休診</div>
+                {isAdmin && <span style={{ background:"#6C63FF22", color:"#6C63FF", fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:8 }}>管理者</span>}
+              </div>
+            </div>
+
+            {/* Sales summary card on home */}
+            <Btn onClick={() => go(SCREENS.SALES)} style={{ width:"100%", background:"linear-gradient(135deg,#43C6AC,#7EEAD6)", borderRadius:20, padding:"16px 20px", marginBottom:14, textAlign:"left", boxShadow:"0 6px 20px rgba(67,198,172,.3)" }}>
+              <div style={{ fontSize:11, color:"rgba(255,255,255,.85)", fontWeight:700, marginBottom:4 }}>📊 今月の業績 (3月)</div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+                <div>
+                  <div style={{ fontSize:28, fontWeight:900, color:"white" }}>4,560<span style={{ fontSize:14, marginLeft:2 }}>万円</span></div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,.8)", marginTop:2 }}>目標 4,200万円</div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:18, fontWeight:800, color:"white" }}>+{momChange}%</div>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,.75)" }}>前月比</div>
+                </div>
+              </div>
+              <div style={{ marginTop:12 }}>
+                <ProgressBar current={4560} target={4200} color="rgba(255,255,255,.9)" height={6} />
+                <div style={{ fontSize:10, color:"rgba(255,255,255,.7)", marginTop:4, textAlign:"right" }}>目標達成率 108%</div>
+              </div>
+            </Btn>
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:18 }}>
+              {[
+                { icon:"📢", label:"お知らせ", sub:`${NOTICES.length}件`, s:SCREENS.NOTICE, badge:2, grad:"linear-gradient(135deg,#6C63FF,#9B8FFF)" },
+                { icon:"🌙", label:"終礼", sub:"AI自動まとめ", s:SCREENS.CLOSING, badge:0, grad:"linear-gradient(135deg,#4facfe,#00f2fe)" },
+                { icon:"📖", label:"マニュアル", sub:`${manuals.length}件`, s:SCREENS.MANUAL, badge:0, grad:"linear-gradient(135deg,#a18cd1,#fbc2eb)" },
+                { icon:"📅", label:"シフト", sub:"4週間", s:SCREENS.SHIFT, badge:0, grad:"linear-gradient(135deg,#F7971E,#FFD200)" },
+              ].map(item => (
+                <Btn key={item.label} onClick={() => go(item.s)} style={{ background:"white", borderRadius:20, padding:0, textAlign:"left", boxShadow:"0 4px 16px rgba(0,0,0,.08)", overflow:"hidden", position:"relative" }}>
+                  {item.badge > 0 && <div style={{ position:"absolute", top:10, right:10, background:"#FF4444", color:"white", borderRadius:20, minWidth:20, height:20, fontSize:11, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", zIndex:1 }}>{item.badge}</div>}
+                  <div style={{ background:item.grad, padding:"14px 16px 10px" }}><div style={{ fontSize:28 }}>{item.icon}</div></div>
+                  <div style={{ padding:"10px 14px 14px" }}>
+                    <div style={{ fontSize:15, fontWeight:800, color:"#1A1A3A" }}>{item.label}</div>
+                    <div style={{ fontSize:11, color:"#9A9AB0", marginTop:1 }}>{item.sub}</div>
+                  </div>
+                </Btn>
+              ))}
+            </div>
+
+            {/* Staff */}
+            <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 4px 16px rgba(0,0,0,.07)", marginBottom:16 }}>
+              <div style={{ background:"linear-gradient(135deg,#a18cd1,#fbc2eb)", padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div style={{ fontWeight:800, color:"white", fontSize:14 }}>👥 スタッフ ({staffList.length}名)</div>
+                {isAdmin && <Btn onClick={() => go(SCREENS.STAFF)} style={{ background:"rgba(255,255,255,.3)", borderRadius:12, padding:"4px 10px", color:"white", fontSize:12, fontWeight:700 }}>管理</Btn>}
+              </div>
+              <div style={{ padding:"12px 16px", display:"flex", flexWrap:"wrap", gap:8 }}>
+                {staffList.map(s => (
+                  <div key={s.id} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                    <div style={{ width:40, height:40, borderRadius:"50%", background:s.color, color:"white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:800, position:"relative" }}>
+                      {avatarChar(s.name)}
+                      {s.admin && <div style={{ position:"absolute", bottom:-2, right:-2, width:14, height:14, background:"#FFD200", borderRadius:"50%", border:"2px solid white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:8 }}>★</div>}
+                    </div>
+                    <div style={{ fontSize:10, color:"#5A5A7A", fontWeight:600 }}>{s.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 4px 16px rgba(0,0,0,.07)" }}>
+              <div style={{ background:"linear-gradient(135deg,#6C63FF,#9B8FFF)", padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div style={{ fontWeight:800, color:"white", fontSize:14 }}>📢 最新のお知らせ</div>
+                <Btn onClick={() => go(SCREENS.NOTICE)} style={{ background:"rgba(255,255,255,.3)", borderRadius:12, padding:"4px 10px", color:"white", fontSize:12, fontWeight:700 }}>全部見る</Btn>
+              </div>
+              <div style={{ padding:"8px 16px" }}>
+                {NOTICES.map(n => (
+                  <div key={n.id} onClick={() => { setSelectedNotice(n); setScreen(SCREENS.NOTICE); }} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px solid #F4F6FB", cursor:"pointer" }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:n.important?"#FF6584":"#DDDDEE", flexShrink:0 }} />
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:"#1A1A3A" }}>{n.title}</div>
+                      <div style={{ fontSize:11, color:"#9A9AB0", marginTop:1 }}>{n.author} · {n.date}</div>
+                    </div>
+                    <div style={{ background:(TAG_COLORS[n.tag]||"#888")+"22", color:TAG_COLORS[n.tag]||"#888", fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:8 }}>{n.tag}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== SALES / PERFORMANCE ===== */}
+        {screen === SCREENS.SALES && (
+          <div style={{ padding:16 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+              <div>
+                <div style={{ fontSize:18, fontWeight:800, color:"#1A1A3A" }}>📊 売上・業績</div>
+                <div style={{ fontSize:12, color:"#9A9AB0", marginTop:2 }}>全スタッフ公開</div>
+              </div>
+              {isAdmin && <Btn onClick={() => setEditGoal("open")} style={{ background:"linear-gradient(135deg,#43C6AC,#7EEAD6)", borderRadius:14, padding:"8px 14px", color:"white", fontSize:12, fontWeight:800, boxShadow:"0 4px 12px rgba(67,198,172,.35)" }}>目標編集</Btn>}
+            </div>
+
+            {/* Tab */}
+            <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+              {[["overview","概要"],["monthly","月別"],["category","内訳"]].map(([key,label]) => (
+                <Btn key={key} onClick={() => setSalesTab(key)} style={{ flex:1, padding:"9px 0", borderRadius:24, background:salesTab===key?"linear-gradient(135deg,#43C6AC,#7EEAD6)":"white", color:salesTab===key?"white":"#5A5A7A", fontSize:13, fontWeight:700, boxShadow:salesTab===key?"0 4px 12px rgba(67,198,172,.35)":"0 2px 8px rgba(0,0,0,.07)" }}>{label}</Btn>
+              ))}
+            </div>
+
+            {/* OVERVIEW TAB */}
+            {salesTab === "overview" && (
+              <div>
+                {/* Big number */}
+                <div style={{ background:"linear-gradient(135deg,#43C6AC,#7EEAD6)", borderRadius:20, padding:"20px 22px", marginBottom:14, boxShadow:"0 6px 24px rgba(67,198,172,.3)" }}>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,.85)", fontWeight:700, marginBottom:6 }}>3月 月間売上</div>
+                  <div style={{ display:"flex", alignItems:"flex-end", gap:10, marginBottom:12 }}>
+                    <div style={{ fontSize:38, fontWeight:900, color:"white", lineHeight:1 }}>4,560</div>
+                    <div style={{ fontSize:16, color:"rgba(255,255,255,.85)", marginBottom:4 }}>万円</div>
+                    <div style={{ marginLeft:"auto", textAlign:"right" }}>
+                      <div style={{ fontSize:20, fontWeight:800, color:"white" }}>+{momChange}%</div>
+                      <div style={{ fontSize:11, color:"rgba(255,255,255,.75)" }}>前月比</div>
+                    </div>
+                  </div>
+                  <div style={{ background:"rgba(255,255,255,.25)", borderRadius:99, height:8, overflow:"hidden" }}>
+                    <div style={{ width:"108%", height:"100%", background:"white", borderRadius:99 }} />
+                  </div>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginTop:6 }}>
+                    <div style={{ fontSize:11, color:"rgba(255,255,255,.75)" }}>目標 4,200万円</div>
+                    <div style={{ fontSize:11, color:"white", fontWeight:800 }}>108% 達成 🎉</div>
+                  </div>
+                </div>
+
+                {/* KPI Goals */}
+                <div style={{ fontSize:14, fontWeight:800, color:"#1A1A3A", marginBottom:12 }}>🎯 年間目標の進捗</div>
+                {goals.map((g, i) => {
+                  const pct = Math.min(Math.round(g.current / g.target * 100), 100);
+                  const achieved = pct >= 100;
+                  return (
+                    <div key={i} style={{ background:"white", borderRadius:16, padding:"14px 16px", marginBottom:10, boxShadow:"0 4px 14px rgba(0,0,0,.07)" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          <div style={{ fontSize:22 }}>{g.icon}</div>
+                          <div>
+                            <div style={{ fontSize:14, fontWeight:700, color:"#1A1A3A" }}>{g.label}</div>
+                            <div style={{ fontSize:11, color:"#9A9AB0", marginTop:1 }}>目標 {g.target}{g.unit}</div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign:"right" }}>
+                          <div style={{ fontSize:20, fontWeight:900, color:g.color }}>{g.current}<span style={{ fontSize:11, marginLeft:2 }}>{g.unit}</span></div>
+                          {achieved
+                            ? <span style={{ background:"#43C6AC22", color:"#43C6AC", fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:8 }}>✓ 達成！</span>
+                            : <span style={{ fontSize:12, color:"#9A9AB0", fontWeight:600 }}>{pct}%</span>
+                          }
+                        </div>
+                      </div>
+                      <ProgressBar current={g.current} target={g.target} color={g.color} height={10} />
+                    </div>
+                  );
+                })}
+
+                {/* Patients this month */}
+                <div style={{ background:"white", borderRadius:16, padding:"14px 16px", marginTop:4, boxShadow:"0 4px 14px rgba(0,0,0,.07)" }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:"#1A1A3A", marginBottom:12 }}>🦷 今月の来院数</div>
+                  <div style={{ display:"flex", gap:12 }}>
+                    {[["総来院数","374人","#6C63FF"],["新患","38人","#FF6584"],["リコール","251人","#43C6AC"]].map(([label,val,color]) => (
+                      <div key={label} style={{ flex:1, textAlign:"center", padding:"12px 8px", background:color+"11", borderRadius:14 }}>
+                        <div style={{ fontSize:20, fontWeight:900, color }}>{val}</div>
+                        <div style={{ fontSize:11, color:"#9A9AB0", marginTop:3 }}>{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MONTHLY TAB */}
+            {salesTab === "monthly" && (
+              <div>
+                <div style={{ background:"white", borderRadius:18, padding:"16px", boxShadow:"0 4px 14px rgba(0,0,0,.07)", marginBottom:14 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#1A1A3A", marginBottom:14 }}>月別売上推移（万円）</div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={salesData} margin={{ top:4, right:8, left:-20, bottom:0 }}>
+                      <XAxis dataKey="month" tick={{ fontSize:11, fill:"#9A9AB0" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize:10, fill:"#9A9AB0" }} axisLine={false} tickLine={false} domain={[3000, 5000]} tickFormatter={v => `${v/1000}k`} />
+                      <Tooltip formatter={v => [`${v}万円`]} labelStyle={{ fontSize:12 }} contentStyle={{ borderRadius:12, border:"none", boxShadow:"0 4px 16px rgba(0,0,0,.12)", fontSize:12 }} />
+                      <Line type="monotone" dataKey="revenue" stroke="#43C6AC" strokeWidth={3} dot={{ fill:"#43C6AC", r:4 }} name="売上" />
+                      <Line type="monotone" dataKey="target" stroke="#E0E0F0" strokeWidth={2} strokeDasharray="5 3" dot={false} name="目標" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div style={{ display:"flex", gap:16, justifyContent:"center", marginTop:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:4 }}><div style={{ width:16, height:3, background:"#43C6AC", borderRadius:2 }} /><span style={{ fontSize:11, color:"#9A9AB0" }}>売上</span></div>
+                    <div style={{ display:"flex", alignItems:"center", gap:4 }}><div style={{ width:16, height:3, background:"#E0E0F0", borderRadius:2 }} /><span style={{ fontSize:11, color:"#9A9AB0" }}>目標</span></div>
+                  </div>
+                </div>
+
+                {salesData.map((m, i) => {
+                  const achieved = m.revenue >= m.target;
+                  const pct = Math.round(m.revenue / m.target * 100);
+                  return (
+                    <div key={i} style={{ background:"white", borderRadius:16, padding:"14px 16px", marginBottom:10, boxShadow:"0 3px 10px rgba(0,0,0,.06)" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                        <div style={{ fontSize:15, fontWeight:800, color:"#1A1A3A" }}>{m.month}</div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          <div style={{ fontSize:16, fontWeight:900, color:achieved?"#43C6AC":"#F7971E" }}>{m.revenue}万円</div>
+                          <span style={{ background:achieved?"#43C6AC22":"#F7971E22", color:achieved?"#43C6AC":"#F7971E", fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:8 }}>
+                            {achieved?"✓ 達成":pct+"%"}
+                          </span>
+                        </div>
+                      </div>
+                      <ProgressBar current={m.revenue} target={m.target} color={achieved?"#43C6AC":"#F7971E"} height={7} />
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:5 }}>
+                        <div style={{ fontSize:11, color:"#9A9AB0" }}>目標 {m.target}万円</div>
+                        <div style={{ fontSize:11, color:"#9A9AB0" }}>来院 {m.patients}人</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* CATEGORY TAB */}
+            {salesTab === "category" && (
+              <div>
+                <div style={{ background:"white", borderRadius:18, padding:16, boxShadow:"0 4px 14px rgba(0,0,0,.07)", marginBottom:14 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#1A1A3A", marginBottom:14 }}>診療カテゴリ別売上（3月）</div>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={CATEGORY_SALES} margin={{ top:4, right:8, left:-20, bottom:0 }}>
+                      <XAxis dataKey="name" tick={{ fontSize:11, fill:"#9A9AB0" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize:10, fill:"#9A9AB0" }} axisLine={false} tickLine={false} tickFormatter={v => `${v}万`} />
+                      <Tooltip formatter={v => [`${v}万円`]} contentStyle={{ borderRadius:12, border:"none", boxShadow:"0 4px 16px rgba(0,0,0,.12)", fontSize:12 }} />
+                      <Bar dataKey="value" radius={[8,8,0,0]}>
+                        {CATEGORY_SALES.map((c,i) => <Cell key={i} fill={c.color} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {CATEGORY_SALES.map((c, i) => {
+                  const total = CATEGORY_SALES.reduce((a,b) => a+b.value, 0);
+                  const pct = Math.round(c.value / total * 100);
+                  return (
+                    <div key={i} style={{ background:"white", borderRadius:16, padding:"14px 16px", marginBottom:10, boxShadow:"0 3px 10px rgba(0,0,0,.06)", display:"flex", alignItems:"center", gap:14 }}>
+                      <div style={{ width:44, height:44, borderRadius:14, background:c.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:900, color:c.color, flexShrink:0 }}>{pct}%</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:14, fontWeight:700, color:"#1A1A3A", marginBottom:6 }}>{c.name}</div>
+                        <ProgressBar current={c.value} target={total} color={c.color} height={7} />
+                      </div>
+                      <div style={{ fontSize:17, fontWeight:900, color:c.color }}>{c.value}万</div>
+                    </div>
+                  );
+                })}
+
+                <div style={{ background:"#F8FFF8", borderRadius:16, padding:"12px 16px", marginTop:4, border:"1px solid #43C6AC33" }}>
+                  <div style={{ fontSize:12, color:"#43C6AC", fontWeight:700 }}>💡 今月のポイント</div>
+                  <div style={{ fontSize:13, color:"#2A4A3A", marginTop:6, lineHeight:1.6 }}>インプラント・審美の自費診療が前月比+12%。リニューアル後の新患獲得が好調です。</div>
+                </div>
+              </div>
+            )}
+
+            {/* Goal Edit Modal (admin only) */}
+            {editGoal && isAdmin && (
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+                <div style={{ background:"white", borderRadius:"24px 24px 0 0", padding:24, width:"100%", maxWidth:430, maxHeight:"85vh", overflow:"auto" }}>
+                  <div style={{ fontSize:17, fontWeight:800, color:"#1A1A3A", marginBottom:6 }}>🎯 目標値を編集</div>
+                  <div style={{ fontSize:12, color:"#9A9AB0", marginBottom:20 }}>管理者のみ変更できます</div>
+                  {goals.map((g, i) => (
+                    <div key={i} style={{ marginBottom:18 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:"#43C6AC", marginBottom:8 }}>{g.icon} {g.label}（{g.unit}）</div>
+                      <div style={{ display:"flex", gap:10 }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:11, color:"#9A9AB0", marginBottom:4 }}>現在値</div>
+                          <input type="number" value={g.current} onChange={e => setGoals(prev => prev.map((x,j) => j===i ? {...x, current:parseFloat(e.target.value)||0} : x))}
+                            style={{ width:"100%", border:"1.5px solid #E8EEFF", borderRadius:12, padding:"10px 14px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:11, color:"#9A9AB0", marginBottom:4 }}>目標値</div>
+                          <input type="number" value={g.target} onChange={e => setGoals(prev => prev.map((x,j) => j===i ? {...x, target:parseFloat(e.target.value)||1} : x))}
+                            style={{ width:"100%", border:"1.5px solid #E8EEFF", borderRadius:12, padding:"10px 14px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <Btn onClick={() => setEditGoal(null)} style={{ width:"100%", padding:14, borderRadius:14, background:"linear-gradient(135deg,#43C6AC,#7EEAD6)", color:"white", fontSize:15, fontWeight:800, boxShadow:"0 4px 14px rgba(67,198,172,.35)" }}>保存して閉じる</Btn>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== NOTICE ===== */}
+        {screen === SCREENS.NOTICE && !selectedNotice && (
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:18, fontWeight:800, color:"#1A1A3A", marginBottom:16 }}>お知らせ</div>
+            {NOTICES.map(n => (
+              <div key={n.id} onClick={() => setSelectedNotice(n)} style={{ background:"white", borderRadius:18, marginBottom:12, boxShadow:"0 4px 14px rgba(0,0,0,.07)", overflow:"hidden", cursor:"pointer" }}>
+                <div style={{ height:5, background:n.important?"linear-gradient(90deg,#FF6584,#FF9BAD)":"linear-gradient(90deg,#6C63FF,#3EC6E0)" }} />
+                <div style={{ padding:"14px 16px", display:"flex", gap:12, alignItems:"flex-start" }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", gap:6, marginBottom:6 }}>
+                      {n.important && <span style={{ background:"#FF658422", color:"#FF6584", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>重要</span>}
+                      <span style={{ background:(TAG_COLORS[n.tag]||"#888")+"22", color:TAG_COLORS[n.tag]||"#888", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>{n.tag}</span>
+                    </div>
+                    <div style={{ fontSize:15, fontWeight:700, color:"#1A1A3A" }}>{n.title}</div>
+                    <div style={{ fontSize:12, color:"#9A9AB0", marginTop:4 }}>{n.author} · {n.date}</div>
+                  </div>
+                  <div style={{ color:"#CCCCDD", fontSize:22 }}>›</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {screen === SCREENS.NOTICE && selectedNotice && (
+          <div style={{ padding:16 }}>
+            <Btn onClick={() => setSelectedNotice(null)} style={{ background:"none", color:"#6C63FF", fontSize:14, fontWeight:700, padding:"0 0 14px" }}>‹ 戻る</Btn>
+            <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 4px 14px rgba(0,0,0,.07)" }}>
+              <div style={{ height:6, background:selectedNotice.important?"linear-gradient(90deg,#FF6584,#FF9BAD)":"linear-gradient(90deg,#6C63FF,#3EC6E0)" }} />
+              <div style={{ padding:20 }}>
+                <div style={{ fontSize:19, fontWeight:800, color:"#1A1A3A", marginBottom:8 }}>{selectedNotice.title}</div>
+                <div style={{ fontSize:12, color:"#9A9AB0", marginBottom:16 }}>{selectedNotice.author} · {selectedNotice.date}</div>
+                <div style={{ fontSize:15, color:"#2A2A4A", lineHeight:1.8 }}>{selectedNotice.content}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== STAFF ===== */}
+        {screen === SCREENS.STAFF && (
+          <div style={{ padding:16 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+              <div style={{ fontSize:18, fontWeight:800, color:"#1A1A3A" }}>👥 スタッフ管理</div>
+              {isAdmin && <Btn onClick={() => setShowAddStaff(true)} style={{ background:"linear-gradient(135deg,#a18cd1,#fbc2eb)", borderRadius:14, padding:"8px 16px", color:"white", fontSize:13, fontWeight:800, boxShadow:"0 4px 12px rgba(161,140,209,.4)" }}>＋ 追加</Btn>}
+            </div>
+            {!isAdmin && <div style={{ background:"#FFF8E8", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#F7971E", marginBottom:14 }}>⚠️ 管理者のみ編集できます</div>}
+            <div style={{ fontSize:12, color:"#9A9AB0", marginBottom:16 }}>★ = 管理者権限あり</div>
+            {staffList.map(s => (
+              <div key={s.id} style={{ background:"white", borderRadius:16, marginBottom:10, boxShadow:"0 4px 14px rgba(0,0,0,.07)", overflow:"hidden" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px" }}>
+                  <div style={{ width:46, height:46, borderRadius:"50%", background:s.color, color:"white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:800, flexShrink:0, position:"relative" }}>
+                    {avatarChar(s.name)}
+                    {s.admin && <div style={{ position:"absolute", bottom:-2, right:-2, width:16, height:16, background:"#FFD200", borderRadius:"50%", border:"2px solid white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9 }}>★</div>}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <div style={{ fontSize:15, fontWeight:800, color:"#1A1A3A" }}>{s.name}</div>
+                      {s.admin && <span style={{ background:"#FFD20022", color:"#B8940A", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>管理者</span>}
+                    </div>
+                    <div style={{ fontSize:12, color:"#9A9AB0", marginTop:2 }}>{s.role}</div>
+                  </div>
+                  {isAdmin && s.id !== currentUser.id && (
+                    <div style={{ display:"flex", gap:6 }}>
+                      <Btn onClick={() => setStaffEditTarget({...s})} style={{ background:"#6C63FF22", borderRadius:10, padding:"7px 12px", color:"#6C63FF", fontSize:12, fontWeight:700 }}>編集</Btn>
+                      <Btn onClick={() => setDeleteConfirm(s.id)} style={{ background:"#FF658422", borderRadius:10, padding:"7px 12px", color:"#FF6584", fontSize:12, fontWeight:700 }}>削除</Btn>
+                    </div>
+                  )}
+                </div>
+                {isAdmin && s.id !== currentUser.id && (
+                  <div style={{ padding:"0 16px 14px", display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ fontSize:12, color:"#7A7A9A" }}>管理者権限</div>
+                    <Btn onClick={() => toggleAdmin(s.id)} style={{ background:s.admin?"#FFD200":"#F0F0F0", borderRadius:20, padding:"5px 16px", color:s.admin?"#7A6000":"#9A9AB0", fontSize:12, fontWeight:700 }}>{s.admin?"★ ON":"☆ OFF"}</Btn>
+                  </div>
+                )}
+              </div>
+            ))}
+            {showAddStaff && (
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+                <div style={{ background:"white", borderRadius:"24px 24px 0 0", padding:24, width:"100%", maxWidth:430, maxHeight:"85vh", overflow:"auto" }}>
+                  <div style={{ fontSize:17, fontWeight:800, color:"#1A1A3A", marginBottom:20 }}>➕ スタッフ追加</div>
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#6C63FF", marginBottom:6 }}>名前</div>
+                    <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="例：中村" style={{ width:"100%", border:"1.5px solid #E8EEFF", borderRadius:12, padding:"10px 14px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                  </div>
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#6C63FF", marginBottom:6 }}>役職</div>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                      {ROLES.map(r => <Btn key={r} onClick={() => setNewRole(r)} style={{ padding:"7px 14px", borderRadius:24, background:newRole===r?"#6C63FF":"#F4F6FB", color:newRole===r?"white":"#5A5A7A", fontSize:13, fontWeight:700 }}>{r}</Btn>)}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#6C63FF", marginBottom:6 }}>カラー</div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                      {AVATAR_COLORS.map(c => <Btn key={c} onClick={() => setNewColor(c)} style={{ width:32, height:32, borderRadius:"50%", background:c, border:newColor===c?"3px solid #1A1A3A":"3px solid transparent" }} />)}
+                    </div>
+                    <div style={{ marginTop:10, display:"flex", alignItems:"center", gap:10 }}>
+                      <div style={{ width:44, height:44, borderRadius:"50%", background:newColor, color:"white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:800 }}>{newName ? avatarChar(newName) : "？"}</div>
+                      <div style={{ fontSize:13, color:"#7A7A9A" }}>プレビュー</div>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom:20 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#6C63FF", marginBottom:6 }}>管理者権限</div>
+                    <Btn onClick={() => setNewAdmin(!newAdmin)} style={{ background:newAdmin?"#FFD200":"#F0F0F0", borderRadius:20, padding:"8px 20px", color:newAdmin?"#7A6000":"#9A9AB0", fontSize:13, fontWeight:700 }}>{newAdmin?"★ 管理者にする":"☆ 一般スタッフ"}</Btn>
+                  </div>
+                  <div style={{ display:"flex", gap:10 }}>
+                    <Btn onClick={() => setShowAddStaff(false)} style={{ flex:1, padding:14, borderRadius:14, background:"#F4F6FB", color:"#7A7A9A", fontSize:14, fontWeight:700 }}>キャンセル</Btn>
+                    <Btn onClick={addStaff} style={{ flex:2, padding:14, borderRadius:14, background:"linear-gradient(135deg,#a18cd1,#fbc2eb)", color:"white", fontSize:14, fontWeight:800, boxShadow:"0 4px 12px rgba(161,140,209,.4)" }}>追加する</Btn>
+                  </div>
+                </div>
+              </div>
+            )}
+            {staffEditTarget && (
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+                <div style={{ background:"white", borderRadius:"24px 24px 0 0", padding:24, width:"100%", maxWidth:430, maxHeight:"85vh", overflow:"auto" }}>
+                  <div style={{ fontSize:17, fontWeight:800, color:"#1A1A3A", marginBottom:20 }}>✏️ スタッフ編集</div>
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#6C63FF", marginBottom:6 }}>名前</div>
+                    <input value={staffEditTarget.name} onChange={e => setStaffEditTarget({...staffEditTarget, name:e.target.value})} style={{ width:"100%", border:"1.5px solid #E8EEFF", borderRadius:12, padding:"10px 14px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                  </div>
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#6C63FF", marginBottom:6 }}>役職</div>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                      {ROLES.map(r => <Btn key={r} onClick={() => setStaffEditTarget({...staffEditTarget, role:r})} style={{ padding:"7px 14px", borderRadius:24, background:staffEditTarget.role===r?"#6C63FF":"#F4F6FB", color:staffEditTarget.role===r?"white":"#5A5A7A", fontSize:13, fontWeight:700 }}>{r}</Btn>)}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom:20 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#6C63FF", marginBottom:6 }}>カラー</div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                      {AVATAR_COLORS.map(c => <Btn key={c} onClick={() => setStaffEditTarget({...staffEditTarget, color:c})} style={{ width:32, height:32, borderRadius:"50%", background:c, border:staffEditTarget.color===c?"3px solid #1A1A3A":"3px solid transparent" }} />)}
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:10 }}>
+                    <Btn onClick={() => setStaffEditTarget(null)} style={{ flex:1, padding:14, borderRadius:14, background:"#F4F6FB", color:"#7A7A9A", fontSize:14, fontWeight:700 }}>キャンセル</Btn>
+                    <Btn onClick={saveEdit} style={{ flex:2, padding:14, borderRadius:14, background:"linear-gradient(135deg,#6C63FF,#9B8FFF)", color:"white", fontSize:14, fontWeight:800 }}>保存</Btn>
+                  </div>
+                </div>
+              </div>
+            )}
+            {deleteConfirm && (
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+                <div style={{ background:"white", borderRadius:20, padding:24, width:"100%", maxWidth:360 }}>
+                  <div style={{ fontSize:16, fontWeight:800, color:"#1A1A3A", marginBottom:8 }}>スタッフを削除しますか？</div>
+                  <div style={{ fontSize:14, color:"#7A7A9A", marginBottom:20 }}>「{staffList.find(s => s.id===deleteConfirm)?.name}」を削除します。</div>
+                  <div style={{ display:"flex", gap:10 }}>
+                    <Btn onClick={() => setDeleteConfirm(null)} style={{ flex:1, padding:12, borderRadius:14, background:"#F4F6FB", color:"#7A7A9A", fontSize:14, fontWeight:700 }}>キャンセル</Btn>
+                    <Btn onClick={() => deleteStaff(deleteConfirm)} style={{ flex:1, padding:12, borderRadius:14, background:"linear-gradient(135deg,#FF6584,#FF9BAD)", color:"white", fontSize:14, fontWeight:800 }}>削除する</Btn>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== CLOSING ===== */}
+        {screen === SCREENS.CLOSING && (
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:18, fontWeight:800, color:"#1A1A3A", marginBottom:4 }}>🌙 終礼</div>
+            <div style={{ fontSize:12, color:"#9A9AB0", marginBottom:18 }}>内容を入力するとAIが自動でマニュアルにまとめます</div>
+
+
+            <div style={{ background:"white", borderRadius:18, padding:18, boxShadow:"0 4px 16px rgba(0,0,0,.07)", marginBottom:14 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"#4facfe", marginBottom:8 }}>📅 日付</div>
+              <input type="date" value={closingDate} onChange={e => setClosingDate(e.target.value)} style={{ width:"100%", border:"1.5px solid #E8EEFF", borderRadius:12, padding:"10px 14px", fontSize:14, color:"#1A1A3A", outline:"none", boxSizing:"border-box" }} />
+            </div>
+            <div style={{ background:"white", borderRadius:18, padding:18, boxShadow:"0 4px 16px rgba(0,0,0,.07)", marginBottom:14 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"#4facfe", marginBottom:8 }}>📝 終礼メモ</div>
+              <div style={{ fontSize:11, color:"#9A9AB0", marginBottom:8 }}>箇条書き・メモ書きでもOKです</div>
+              <textarea value={closingText} onChange={e => setClosingText(e.target.value)} placeholder={"例：\n・グローブが不足中→Mサイズを代用\n・滅菌器アラームの対応手順を確認\n・来週月曜は早出をお願い"} style={{ width:"100%", border:"1.5px solid #E8EEFF", borderRadius:12, padding:"12px 14px", fontSize:13, color:"#1A1A3A", outline:"none", resize:"none", minHeight:130, lineHeight:1.7, boxSizing:"border-box", fontFamily:"inherit" }} />
+            </div>
+            <Btn onClick={generateManual} style={{ width:"100%", padding:15, borderRadius:18, background:closingText.trim()?"linear-gradient(135deg,#4facfe,#00f2fe)":"#DDDDEE", color:"white", fontSize:15, fontWeight:800, boxShadow:closingText.trim()?"0 6px 20px rgba(79,172,254,.4)":"none", marginBottom:16 }}>
+              {closingLoading ? "✨ AIが生成中..." : "✨ AIでマニュアルを自動生成"}
+            </Btn>
+            {closingLoading && <div style={{ background:"white", borderRadius:18, padding:24, textAlign:"center", boxShadow:"0 4px 16px rgba(0,0,0,.07)" }}><div style={{ fontSize:32, marginBottom:10 }}>⚙️</div><div style={{ color:"#4facfe", fontWeight:700 }}>終礼内容を分析中...</div></div>}
+            {closingResult && !closingResult.error && (
+              <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 6px 24px rgba(79,172,254,.2)", marginBottom:14 }}>
+                <div style={{ background:"linear-gradient(135deg,#4facfe,#00f2fe)", padding:"14px 18px" }}>
+                  <div style={{ color:"white", fontSize:12, opacity:.85, marginBottom:2 }}>✨ AI生成マニュアル</div>
+                  <div style={{ color:"white", fontSize:17, fontWeight:800 }}>{closingResult.title}</div>
+                  <div style={{ color:"rgba(255,255,255,.8)", fontSize:12, marginTop:4 }}>カテゴリ：{closingResult.category}</div>
+                </div>
+                <div style={{ padding:18 }}>
+                  {(closingResult.points||[]).map((p,i) => (
+                    <div key={i} style={{ display:"flex", gap:10, marginBottom:8 }}>
+                      <div style={{ width:20, height:20, borderRadius:"50%", background:"#4facfe22", color:"#4facfe", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, flexShrink:0 }}>{i+1}</div>
+                      <div style={{ fontSize:14, color:"#1A1A3A", lineHeight:1.6 }}>{p}</div>
+                    </div>
+                  ))}
+                  {closingResult.notes && <div style={{ marginTop:14, background:"#FFF8E8", borderRadius:12, padding:"12px 14px" }}><div style={{ fontSize:12, fontWeight:700, color:"#F7971E", marginBottom:4 }}>⚠️ 注意事項</div><div style={{ fontSize:13, color:"#5A4A2A", lineHeight:1.6 }}>{closingResult.notes}</div></div>}
+                </div>
+                <div style={{ padding:"0 18px 18px", display:"flex", gap:10 }}>
+                  <Btn onClick={() => setClosingResult(null)} style={{ flex:1, padding:12, borderRadius:14, background:"#F4F6FB", color:"#7A7A9A", fontSize:14, fontWeight:700 }}>やり直す</Btn>
+                  <Btn onClick={addToManual} style={{ flex:2, padding:12, borderRadius:14, background:"linear-gradient(135deg,#43C6AC,#7EEAD6)", color:"white", fontSize:14, fontWeight:800, boxShadow:"0 4px 14px rgba(67,198,172,.4)" }}>📖 マニュアルに追加</Btn>
+                </div>
+              </div>
+            )}
+            {closingResult?.error && <div style={{ background:"#FFF0F0", borderRadius:14, padding:16, color:"#E84545", fontSize:13 }}>{closingResult.error}</div>}
+            {closingHistory.length > 0 && (
+              <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 4px 14px rgba(0,0,0,.07)", marginTop:8 }}>
+                <div style={{ padding:"14px 18px", borderBottom:"1px solid #F4F6FB", fontSize:14, fontWeight:800, color:"#1A1A3A" }}>📚 過去の終礼</div>
+                {closingHistory.map(h => (
+                  <div key={h.id} style={{ padding:"12px 18px", borderBottom:"1px solid #F4F6FB" }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#2A2A4A" }}>{h.date}</div>
+                    <div style={{ fontSize:12, color:"#9A9AB0", marginTop:2 }}>→「{h.manual.title}」をマニュアルに追加</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== MANUAL ===== */}
+        {screen === SCREENS.MANUAL && !selectedManual && (
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:18, fontWeight:800, color:"#1A1A3A", marginBottom:14 }}>マニュアル</div>
+            <div style={{ display:"flex", gap:8, marginBottom:16, overflowX:"auto", paddingBottom:4 }}>
+              {categories.map(c => <Btn key={c} onClick={() => setManualCategory(c)} style={{ padding:"8px 16px", borderRadius:28, background:manualCategory===c?"linear-gradient(135deg,#a18cd1,#fbc2eb)":"white", color:manualCategory===c?"white":"#5A5A7A", fontSize:13, fontWeight:700, whiteSpace:"nowrap", boxShadow:manualCategory===c?"0 4px 12px rgba(161,140,209,.35)":"0 2px 8px rgba(0,0,0,.07)" }}>{c}</Btn>)}
+            </div>
+            {filteredManuals.map(m => (
+              <div key={m.id} onClick={() => setSelectedManual(m)} style={{ background:"white", borderRadius:16, marginBottom:10, boxShadow:"0 4px 14px rgba(0,0,0,.07)", overflow:"hidden", display:"flex", cursor:"pointer" }}>
+                <div style={{ width:6, background:m.color, flexShrink:0 }} />
+                <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", flex:1 }}>
+                  <div style={{ width:42, height:42, borderRadius:12, background:m.color+"20", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{m.fromClosing?"📝":m.icon}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <div style={{ fontSize:14, fontWeight:700, color:"#1A1A3A" }}>{m.title}</div>
+                      {m.fromClosing && <span style={{ background:"#4facfe22", color:"#4facfe", fontSize:9, fontWeight:700, padding:"1px 6px", borderRadius:6 }}>AI</span>}
+                    </div>
+                    <div style={{ fontSize:11, color:"#9A9AB0", marginTop:2 }}>{m.category} · 更新 {m.updated}</div>
+                  </div>
+                  <div style={{ color:"#CCCCDD", fontSize:20 }}>›</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {screen === SCREENS.MANUAL && selectedManual && (
+          <div style={{ padding:16 }}>
+            <Btn onClick={() => setSelectedManual(null)} style={{ background:"none", color:"#a18cd1", fontSize:14, fontWeight:700, padding:"0 0 14px" }}>‹ 戻る</Btn>
+            <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 4px 14px rgba(0,0,0,.07)" }}>
+              <div style={{ height:6, background:`linear-gradient(90deg,${selectedManual.color},${selectedManual.color}88)` }} />
+              <div style={{ padding:20 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+                  <div style={{ width:44, height:44, borderRadius:14, background:selectedManual.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>{selectedManual.fromClosing?"📝":selectedManual.icon}</div>
+                  <div><div style={{ fontSize:17, fontWeight:800, color:"#1A1A3A" }}>{selectedManual.title}</div><div style={{ fontSize:12, color:"#9A9AB0" }}>{selectedManual.category} · {selectedManual.updated}</div></div>
+                </div>
+                {selectedManual.content ? selectedManual.content.split("\n").filter(Boolean).map((line,i) => (
+                  <div key={i} style={{ display:"flex", gap:10, marginBottom:8 }}>
+                    <div style={{ width:20, height:20, borderRadius:"50%", background:selectedManual.color+"22", color:selectedManual.color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, flexShrink:0 }}>{i+1}</div>
+                    <div style={{ fontSize:14, color:"#1A1A3A", lineHeight:1.6 }}>{line}</div>
+                  </div>
+                )) : <div style={{ color:"#9A9AB0", fontSize:14, textAlign:"center", padding:"20px 0" }}>内容準備中です</div>}
+                {selectedManual.notes && <div style={{ marginTop:16, background:"#FFF8E8", borderRadius:12, padding:"12px 14px" }}><div style={{ fontSize:12, fontWeight:700, color:"#F7971E", marginBottom:4 }}>⚠️ 注意事項</div><div style={{ fontSize:13, color:"#5A4A2A", lineHeight:1.6 }}>{selectedManual.notes}</div></div>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== SHIFT REQUEST ===== */}
+        {screen === SCREENS.REQUEST && (() => {
+          // 28日分の日付生成（選択中の年月の第1月曜から）
+          const getDays = () => {
+            const days = [];
+            const dayNames = ["日","月","火","水","木","金","土"];
+            // 選択月の最初の月曜を探す
+            let d = new Date(reqYear, reqMonth - 1, 1);
+            while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
+            for (let i = 0; i < 28; i++) {
+              const dd = new Date(d);
+              dd.setDate(d.getDate() + i);
+              const dow = dd.getDay();
+              const dateStr = `${dd.getFullYear()}/${String(dd.getMonth()+1).padStart(2,"0")}/${String(dd.getDate()).padStart(2,"0")}`;
+              days.push({ dateStr, dow, dayName: dayNames[dow], isSun: dow===0, isSat: dow===6 });
+            }
+            return days;
+          };
+          const days = getDays();
+          const REQUEST_TYPES = [
+            { key:"希望休", label:"休", color:"#FF6584", bg:"#FFE4E4" },
+            { key:"有給", label:"有給", color:"#4facfe", bg:"#E4F4FF" },
+            { key:"希望出勤", label:"出勤", color:"#43C6AC", bg:"#E4FFE4" },
+          ];
+          return (
+            <div style={{ padding:16 }}>
+              <div style={{ fontSize:18, fontWeight:800, color:"#1A1A3A", marginBottom:4 }}>✋ シフト・有給希望</div>
+              <div style={{ fontSize:12, color:"#9A9AB0", marginBottom:16 }}>希望をタップして申請→スプレッドシートに自動反映</div>
+
+              {/* スタッフ選択 */}
+              <div style={{ background:"white", borderRadius:18, padding:16, boxShadow:"0 4px 14px rgba(0,0,0,.07)", marginBottom:12 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#FF6584", marginBottom:10 }}>👤 申請者</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                  {staffList.map(s => (
+                    <Btn key={s.id} onClick={() => setReqStaff(s.name)}
+                      style={{ padding:"7px 14px", borderRadius:24, background:reqStaff===s.name?s.color:"#F4F6FB", color:reqStaff===s.name?"white":"#5A5A7A", fontSize:13, fontWeight:700, boxShadow:reqStaff===s.name?`0 4px 12px ${s.color}55`:"none" }}>
+                      {s.name}
+                    </Btn>
+                  ))}
+                </div>
+              </div>
+
+              {/* 年月選択 */}
+              <div style={{ background:"white", borderRadius:18, padding:16, boxShadow:"0 4px 14px rgba(0,0,0,.07)", marginBottom:12 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#FF6584", marginBottom:10 }}>📅 対象月</div>
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <Btn onClick={() => { const d = new Date(reqYear, reqMonth-2); setReqYear(d.getFullYear()); setReqMonth(d.getMonth()+1); setReqDays({}); }}
+                    style={{ width:36, height:36, borderRadius:"50%", background:"#F4F6FB", color:"#5A5A7A", fontSize:18, fontWeight:700 }}>‹</Btn>
+                  <div style={{ flex:1, textAlign:"center", fontSize:16, fontWeight:800, color:"#1A1A3A" }}>{reqYear}年 {reqMonth}月</div>
+                  <Btn onClick={() => { const d = new Date(reqYear, reqMonth); setReqYear(d.getFullYear()); setReqMonth(d.getMonth()+1); setReqDays({}); }}
+                    style={{ width:36, height:36, borderRadius:"50%", background:"#F4F6FB", color:"#5A5A7A", fontSize:18, fontWeight:700 }}>›</Btn>
+                </div>
+              </div>
+
+              {/* 凡例 */}
+              <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
+                {REQUEST_TYPES.map(t => (
+                  <div key={t.key} style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <div style={{ width:14, height:14, borderRadius:4, background:t.bg, border:`1.5px solid ${t.color}` }} />
+                    <span style={{ fontSize:11, color:"#7A7A9A", fontWeight:600 }}>{t.label}</span>
+                  </div>
+                ))}
+                <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <div style={{ width:14, height:14, borderRadius:4, background:"#F4F6FB" }} />
+                  <span style={{ fontSize:11, color:"#7A7A9A" }}>タップで切替</span>
+                </div>
+              </div>
+
+              {/* 28日カレンダー */}
+              <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 4px 14px rgba(0,0,0,.07)", marginBottom:14 }}>
+                {/* 曜日ヘッダー */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", background:"#6C63FF" }}>
+                  {["月","火","水","木","金","土","日"].map(d => (
+                    <div key={d} style={{ textAlign:"center", padding:"8px 0", fontSize:11, fontWeight:800, color:"white" }}>{d}</div>
+                  ))}
+                </div>
+                {/* 日付グリッド（4週） */}
+                {[0,1,2,3].map(week => (
+                  <div key={week} style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderBottom:week<3?"1px solid #F0F2F8":"none" }}>
+                    {days.slice(week*7, week*7+7).map((day, di) => {
+                      const selected = reqDays[day.dateStr];
+                      const rt = REQUEST_TYPES.find(t => t.key === selected);
+                      return (
+                        <Btn key={di} onClick={() => {
+                          setReqDays(prev => {
+                            const next = {...prev};
+                            if (!next[day.dateStr]) next[day.dateStr] = "希望休";
+                            else if (next[day.dateStr] === "希望休") next[day.dateStr] = "有給";
+                            else if (next[day.dateStr] === "有給") next[day.dateStr] = "希望出勤";
+                            else delete next[day.dateStr];
+                            return next;
+                          });
+                        }} style={{
+                          padding:"8px 2px", textAlign:"center",
+                          background: rt ? rt.bg : day.isSun ? "#FFF0F5" : day.isSat ? "#FFF8F0" : "white",
+                          borderLeft: di > 0 ? "1px solid #F0F2F8" : "none",
+                          position:"relative"
+                        }}>
+                          <div style={{ fontSize:13, fontWeight:700, color: rt ? rt.color : day.isSun?"#FF6584":day.isSat?"#F7971E":"#1A1A3A" }}>
+                            {day.dateStr.split("/")[2]}
+                          </div>
+                          {rt && <div style={{ fontSize:9, fontWeight:800, color:rt.color, marginTop:1 }}>{rt.label}</div>}
+                        </Btn>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+
+              {/* 選択サマリー */}
+              {Object.keys(reqDays).length > 0 && (
+                <div style={{ background:"white", borderRadius:16, padding:14, boxShadow:"0 4px 14px rgba(0,0,0,.07)", marginBottom:14 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#1A1A3A", marginBottom:8 }}>申請内容（{Object.keys(reqDays).length}件）</div>
+                  {REQUEST_TYPES.map(t => {
+                    const items = Object.entries(reqDays).filter(([,v]) => v===t.key);
+                    if (!items.length) return null;
+                    return (
+                      <div key={t.key} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                        <div style={{ background:t.bg, color:t.color, fontSize:11, fontWeight:800, padding:"3px 10px", borderRadius:8 }}>{t.label}</div>
+                        <div style={{ fontSize:12, color:"#5A5A7A" }}>{items.map(([d]) => d.slice(5)).join("、")}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 提出ボタン */}
+              <Btn onClick={submitRequest}
+                style={{ width:"100%", padding:15, borderRadius:18, background:Object.keys(reqDays).length>0?"linear-gradient(135deg,#FF6584,#FF9BAD)":"#DDDDEE", color:"white", fontSize:15, fontWeight:800, boxShadow:Object.keys(reqDays).length>0?"0 6px 20px rgba(255,101,132,.4)":"none", marginBottom:12 }}>
+                {reqSubmitting ? "送信中..." : Object.keys(reqDays).length>0 ? `✅ ${Object.keys(reqDays).length}件を申請する` : "日付をタップして希望を選んでください"}
+              </Btn>
+
+              {reqResult && (
+                <div style={{ background:reqResult.success?"#E8FFF5":"#FFF0F0", borderRadius:14, padding:14, textAlign:"center" }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:reqResult.success?"#43C6AC":"#E84545" }}>
+                    {reqResult.success ? "✓ " : "✗ "}{reqResult.message}
+                  </div>
+                  {reqResult.success && <div style={{ fontSize:12, color:"#9A9AB0", marginTop:4 }}>スプレッドシートに反映されました</div>}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ===== SHIFT ===== */}
+        {screen === SCREENS.SHIFT && (
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:18, fontWeight:800, color:"#1A1A3A", marginBottom:4 }}>シフト表</div>
+            <div style={{ fontSize:12, color:"#9A9AB0", marginBottom:14 }}>2026年4月〜5月 · 月曜始まり</div>
+            <div style={{ display:"flex", gap:8, marginBottom:14, overflowX:"auto" }}>
+              {[1,2,3,4].map((w,i) => <Btn key={w} onClick={() => setShiftWeek(i)} style={{ padding:"8px 16px", borderRadius:28, background:shiftWeek===i?"linear-gradient(135deg,#F7971E,#FFD200)":"white", color:shiftWeek===i?"white":"#5A5A7A", fontSize:13, fontWeight:700, whiteSpace:"nowrap", boxShadow:shiftWeek===i?"0 4px 12px rgba(247,151,30,.4)":"0 2px 8px rgba(0,0,0,.07)" }}>第{w}週</Btn>)}
+            </div>
+            <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
+              {Object.entries(SHIFT_COLORS).map(([k,v]) => (
+                <div key={k} style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <div style={{ width:10, height:10, borderRadius:3, background:v.bg, border:`1.5px solid ${v.text}` }} />
+                  <span style={{ fontSize:11, color:"#7A7A9A" }}>{v.label}</span>
+                </div>
+              ))}
+            </div>
+            {weeks[shiftWeek].map((day, di) => (
+              <div key={di} style={{ background:"white", borderRadius:16, marginBottom:10, boxShadow:"0 4px 14px rgba(0,0,0,.06)", overflow:"hidden" }}>
+                <div style={{ background:day.isSunday?"#FFF0F5":day.isSat?"#FFF8F0":day.dow===1?"#FFFAF0":"#FAFBFF", padding:"10px 16px", display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid #F4F6FB" }}>
+                  <div style={{ fontWeight:800, fontSize:14, color:day.isSunday?"#FF6584":day.isSat?"#F7971E":day.dow===1?"#F7971E":"#1A1A3A" }}>{day.label}</div>
+                  {day.isSunday && <span style={{ background:"#FF658422", color:"#FF6584", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>休診</span>}
+                  {day.isSat && <span style={{ background:"#F7971E22", color:"#F7971E", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>土曜</span>}
+                  {day.dow===1 && <span style={{ background:"#6C63FF22", color:"#6C63FF", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>週始</span>}
+                </div>
+                <div style={{ padding:"10px 16px", display:"flex", flexDirection:"column", gap:7 }}>
+                  {staffNames.map(name => {
+                    const shift = day.shifts[name]||"休";
+                    const sc = SHIFT_COLORS[shift]||SHIFT_COLORS["休"];
+                    const staffObj = staffList.find(s => s.name===name);
+                    return (
+                      <div key={name} style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:26, height:26, borderRadius:"50%", background:(staffObj?.color||"#999")+"33", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:staffObj?.color||"#999", flexShrink:0 }}>{avatarChar(name)}</div>
+                        <div style={{ width:34, fontSize:13, fontWeight:600, color:"#2A2A4A" }}>{name}</div>
+                        <div style={{ background:sc.bg, color:sc.text, fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:10, border:`1px solid ${sc.text}33` }}>{sc.label}</div>
+                        {shift!=="休" && <div style={{ fontSize:11, color:"#9A9AB0" }}>{shift}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Nav */}
+      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430, background:"white", borderTop:"1px solid #EEEEF8", display:"grid", gridTemplateColumns:"repeat(5, 1fr)", boxShadow:"0 -6px 24px rgba(0,0,0,.08)", zIndex:100 }}>
+        {navItems.map(item => {
+          const active = screen === item.s;
+          return (
+            <Btn key={item.label} onClick={() => go(item.s)} style={{ background:"none", padding:"10px 0 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <div style={{ width:40, height:40, borderRadius:14, background:active?item.color+"18":"transparent", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>{item.icon}</div>
+              <span style={{ fontSize:9.5, color:active?item.color:"#AAAACC", fontWeight:active?800:500 }}>{item.label}</span>
+            </Btn>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
