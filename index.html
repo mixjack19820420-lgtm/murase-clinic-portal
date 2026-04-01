@@ -492,7 +492,9 @@ const REQ_TYPES = [
 
 // ── Navigation ──
 function showPage(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => {
+    if (p.id !== 'page-login') p.classList.remove('active');
+  });
   document.querySelectorAll('.nav-btn').forEach(b => {
     b.classList.remove('active');
     b.querySelector('.nav-icon').style.background = 'transparent';
@@ -580,12 +582,16 @@ function updatePinDots() {
 }
 
 function checkPin() {
-  if (selectedStaffForLogin && loginPin === selectedStaffForLogin.pin) {
+  if (selectedStaffForLogin && String(loginPin) === String(selectedStaffForLogin.pin)) {
     currentUser = selectedStaffForLogin;
     document.getElementById('login-error').style.display = 'none';
-    // ログイン成功 → ホーム画面へ
-    document.getElementById('page-login').style.display = 'none';
+    // ログイン成功 → ログイン画面を完全に非表示
+    const loginPage = document.getElementById('page-login');
+    loginPage.classList.remove('active');
+    loginPage.style.display = 'none';
+    // ナビ表示
     document.querySelector('.nav').style.display = 'grid';
+    // ホーム画面へ
     showPage('home');
     initHome();
   } else {
@@ -1136,13 +1142,16 @@ async function submitRequest() {
 }
 
 // ── Init ──
-// ログイン画面を初期化
-initLoginScreen();
-// ナビは最初非表示（ログイン後に表示）
-document.querySelector('.nav').style.display = 'none';
-// page-loginをflexで表示
-document.getElementById('page-login').style.display = 'flex';
 renderNotices();
+renderSalesOverview();
+renderClosingHistory();
+// ログイン画面を初期化（最後に実行）
+initLoginScreen();
+const loginPage = document.getElementById('page-login');
+loginPage.classList.add('active');
+loginPage.style.display = 'flex';
+loginPage.style.flexDirection = 'column';
+document.querySelector('.nav').style.display = 'none';
 </script>
 </body>
 </html>
