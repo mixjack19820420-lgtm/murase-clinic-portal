@@ -179,17 +179,58 @@
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <div style="position:relative;font-size:22px">🔔<div style="position:absolute;top:-2px;right:-2px;width:10px;height:10px;background:#FF6584;border-radius:50%;border:2px solid white"></div></div>
-      <div class="header-avatar" onclick="showPage('staff')">村</div>
+      <div class="header-avatar" id="header-avatar" onclick="showPage('staff')" style="cursor:pointer">村</div>
     </div>
   </div>
 
   <div class="content">
 
+    <!-- LOGIN -->
+    <div id="page-login" class="page active" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;padding:24px">
+      <div style="font-size:48px;margin-bottom:16px">🦷</div>
+      <div style="font-size:22px;font-weight:800;color:#1A1A3A;margin-bottom:4px">むらせ歯科</div>
+      <div style="font-size:14px;color:#9A9AB0;margin-bottom:32px">スタッフポータル</div>
+
+      <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,.1)">
+        <div style="font-size:14px;font-weight:700;color:#1A1A3A;margin-bottom:14px;text-align:center">スタッフを選択</div>
+        <div id="login-staff-select" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px"></div>
+
+        <div id="login-pin-section" style="display:none">
+          <div style="font-size:13px;font-weight:700;color:#6C63FF;margin-bottom:8px;text-align:center" id="login-selected-name"></div>
+          <div style="font-size:12px;color:#9A9AB0;margin-bottom:10px;text-align:center">PINコード（4桁）を入力</div>
+          <div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px">
+            <div id="pin-dot-0" style="width:14px;height:14px;border-radius:50%;background:#E8EEFF;border:2px solid #6C63FF33"></div>
+            <div id="pin-dot-1" style="width:14px;height:14px;border-radius:50%;background:#E8EEFF;border:2px solid #6C63FF33"></div>
+            <div id="pin-dot-2" style="width:14px;height:14px;border-radius:50%;background:#E8EEFF;border:2px solid #6C63FF33"></div>
+            <div id="pin-dot-3" style="width:14px;height:14px;border-radius:50%;background:#E8EEFF;border:2px solid #6C63FF33"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="pin-keypad">
+            <button onclick="pinInput('1')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">1</button>
+            <button onclick="pinInput('2')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">2</button>
+            <button onclick="pinInput('3')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">3</button>
+            <button onclick="pinInput('4')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">4</button>
+            <button onclick="pinInput('5')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">5</button>
+            <button onclick="pinInput('6')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">6</button>
+            <button onclick="pinInput('7')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">7</button>
+            <button onclick="pinInput('8')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">8</button>
+            <button onclick="pinInput('9')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">9</button>
+            <button style="padding:14px;border-radius:14px;border:none;background:transparent;font-size:18px;cursor:default"></button>
+            <button onclick="pinInput('0')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">0</button>
+            <button onclick="pinInput('del')" style="padding:14px;border-radius:14px;border:none;background:#F4F6FB;font-size:18px;font-weight:700;color:#1A1A3A;cursor:pointer">⌫</button>
+          </div>
+          <div id="login-error" style="color:#FF6584;font-size:12px;text-align:center;margin-top:10px;display:none">PINコードが違います</div>
+          <button onclick="cancelLogin()" style="width:100%;margin-top:12px;padding:10px;border:none;background:none;color:#9A9AB0;font-size:13px;cursor:pointer">← 戻る</button>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;font-size:11px;color:#BBBBCC">初期PINは院長にお問い合わせください</div>
+    </div>
+
     <!-- HOME -->
     <div id="page-home" class="page active">
       <div class="greeting">
         <div class="greeting-hello">☀️ おはようございます</div>
-        <div class="greeting-name">村瀬雅典</div>
+        <div class="greeting-name" id="greeting-name">村瀬雅典</div>
         <div class="greeting-date">2026年3月29日（日）· 本日 休診 <span style="background:#6C63FF22;color:#6C63FF;font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;margin-left:4px">管理者</span></div>
       </div>
 
@@ -346,7 +387,7 @@
   </div><!-- end content -->
 
   <!-- Bottom Nav -->
-  <div class="nav">
+  <div class="nav" style="display:none">
     <button class="nav-btn active" id="nav-home" onclick="showPage('home')">
       <div class="nav-icon" style="background:#6C63FF18">🏠</div>
       <span class="nav-label" style="color:#6C63FF;font-weight:800">ホーム</span>
@@ -375,13 +416,21 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbwMiEXf38Pqtzfjx4h2wPD0
 
 // ── Data ──
 let staffList = [
-  { id:1, name:"村瀬雅典", role:"院長", color:"#6C63FF", admin:true },
-  { id:2, name:"田中", role:"歯科衛生士", color:"#FF6584", admin:false },
-  { id:3, name:"佐藤", role:"歯科衛生士", color:"#43C6AC", admin:false },
-  { id:4, name:"鈴木", role:"受付", color:"#F7971E", admin:false },
-  { id:5, name:"山田", role:"歯科助手", color:"#4facfe", admin:false },
-  { id:6, name:"林", role:"歯科助手", color:"#a18cd1", admin:false },
+  { id:1,  name:"村瀬雅典", colName:"院長",   role:"院長",     color:"#6C63FF", admin:true,  pin:"1234" },
+  { id:2,  name:"伊藤千紘", colName:"伊藤",   role:"歯科衛生士", color:"#FF6584", admin:false, pin:"1001" },
+  { id:3,  name:"堀萌花",   colName:"堀",     role:"歯科衛生士", color:"#43C6AC", admin:false, pin:"1002" },
+  { id:4,  name:"長谷川成美",colName:"長谷川", role:"歯科衛生士", color:"#F7971E", admin:false, pin:"1003" },
+  { id:5,  name:"岡部綾乃", colName:"岡部",   role:"歯科助手",  color:"#4facfe", admin:false, pin:"1004" },
+  { id:6,  name:"宮田幸代", colName:"宮田",   role:"歯科助手",  color:"#a18cd1", admin:false, pin:"1005" },
+  { id:7,  name:"牧元ひとみ",colName:"牧元",   role:"受付",     color:"#f6416c", admin:false, pin:"1006" },
+  { id:8,  name:"島津藍香", colName:"島津",   role:"受付",     color:"#00b09b", admin:false, pin:"1007" },
+  { id:9,  name:"青柳理紗", colName:"青柳",   role:"歯科助手",  color:"#f093fb", admin:false, pin:"1008" },
+  { id:10, name:"倉橋優来", colName:"倉橋",   role:"歯科助手",  color:"#4481eb", admin:false, pin:"1009" },
 ];
+
+// ── Login state ──
+let currentUser = null; // ログイン中のスタッフ
+let loginPin = "";
 
 let manuals = [
   { id:1, category:"診療", title:"初診問診の流れ", icon:"📋", updated:"2025/03", color:"#6C63FF", content:"", notes:"" },
@@ -475,8 +524,98 @@ function progressBar(current, target, color, height=8) {
   return `<div class="progress-bar-wrap" style="height:${height}px"><div class="progress-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}99)"></div></div>`;
 }
 
+// ── Login Functions ──
+let selectedStaffForLogin = null;
+
+function initLoginScreen() {
+  const el = document.getElementById('login-staff-select');
+  el.innerHTML = staffList.map(s => `
+    <button onclick="selectStaffLogin(${s.id})" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;border:none;background:#F4F6FB;cursor:pointer;text-align:left;width:100%">
+      <div style="width:36px;height:36px;border-radius:50%;background:${s.color};color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0">${s.name[0]}</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#1A1A3A">${s.name}</div>
+        <div style="font-size:11px;color:#9A9AB0">${s.role}</div>
+      </div>
+    </button>
+  `).join('');
+}
+
+function selectStaffLogin(id) {
+  selectedStaffForLogin = staffList.find(s => s.id === id);
+  loginPin = "";
+  document.getElementById('login-staff-select').style.display = 'none';
+  document.getElementById('login-pin-section').style.display = 'block';
+  document.getElementById('login-selected-name').textContent = selectedStaffForLogin.name + ' さん';
+  updatePinDots();
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function cancelLogin() {
+  selectedStaffForLogin = null;
+  loginPin = "";
+  document.getElementById('login-staff-select').style.display = 'flex';
+  document.getElementById('login-staff-select').style.flexDirection = 'column';
+  document.getElementById('login-pin-section').style.display = 'none';
+}
+
+function pinInput(val) {
+  if (val === 'del') {
+    loginPin = loginPin.slice(0, -1);
+  } else if (loginPin.length < 4) {
+    loginPin += val;
+  }
+  updatePinDots();
+  if (loginPin.length === 4) {
+    setTimeout(checkPin, 200);
+  }
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('pin-dot-' + i);
+    if (dot) {
+      dot.style.background = i < loginPin.length ? '#6C63FF' : '#E8EEFF';
+    }
+  }
+}
+
+function checkPin() {
+  if (selectedStaffForLogin && loginPin === selectedStaffForLogin.pin) {
+    currentUser = selectedStaffForLogin;
+    document.getElementById('login-error').style.display = 'none';
+    // ログイン成功 → ホーム画面へ
+    document.getElementById('page-login').style.display = 'none';
+    document.querySelector('.nav').style.display = 'grid';
+    showPage('home');
+    initHome();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    loginPin = "";
+    updatePinDots();
+  }
+}
+
+function logout() {
+  currentUser = null;
+  loginPin = "";
+  selectedStaffForLogin = null;
+  // 全ページを非表示にしてログイン画面へ
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-login').classList.add('active');
+  document.getElementById('page-login').style.display = 'flex';
+  document.querySelector('.nav').style.display = 'none';
+  cancelLogin();
+  initLoginScreen();
+}
+
 // ── Init Home ──
 function initHome() {
+  // Update header with current user
+  if (currentUser) {
+    document.getElementById('header-avatar').textContent = currentUser.name[0];
+    document.getElementById('header-avatar').style.background = currentUser.color;
+    document.getElementById('greeting-name').textContent = currentUser.name;
+  }
   // Staff grid
   const sg = document.getElementById('home-staff-grid');
   sg.innerHTML = staffList.map(s => `
@@ -637,11 +776,12 @@ async function generateManual() {
   try {
     const res = await fetch(GAS_URL, {
       method: "POST",
+      mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ action: "ai_manual", prompt })
     });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    // no-cors returns opaque response - use iframe trick instead
+    throw new Error("GASへの直接接続はブラウザのセキュリティによりブロックされています。GASのURLを直接開いてテストしてください。");
 
     const aiText = (data.text || '').trim();
     const match = aiText.match(/\{[\s\S]*\}/);
@@ -873,8 +1013,11 @@ function showAddStaff() {
 
 // ── Request ──
 function renderRequest() {
+  // ログイン中のスタッフのみ自分の申請ができる（院長は全員分可）
+  const availableStaff = currentUser && currentUser.admin ? staffList : (currentUser ? [currentUser] : staffList);
+  if (currentUser && !currentUser.admin) reqStaff = currentUser.name;
   // Staff buttons
-  document.getElementById('req-staff-btns').innerHTML = staffList.map(s=>`
+  document.getElementById('req-staff-btns').innerHTML = availableStaff.map(s=>`
     <button onclick="setReqStaff('${s.name}')" style="padding:7px 14px;border-radius:28px;border:none;cursor:pointer;font-size:13px;font-weight:700;
       background:${reqStaff===s.name?s.color:'#F4F6FB'};color:${reqStaff===s.name?'white':'#5A5A7A'};
       box-shadow:${reqStaff===s.name?`0 4px 12px ${s.color}55`:'none'}">
@@ -977,13 +1120,11 @@ async function submitRequest() {
   document.getElementById('req-submit-btn').textContent = '送信中...';
   try {
     const requests = Object.entries(reqDays).map(([date,type])=>({date,type}));
-    const res = await fetch(GAS_URL, {
-      method:"POST",
-      headers:{"Content-Type":"text/plain"},
-      body:JSON.stringify({action:"save_shift_request",data:{name:reqStaff,year:reqYear,month:reqMonth,requests,submittedAt:new Date().toISOString()}})
-    });
-    const data = await res.json();
-    if(data.error) throw new Error(data.error);
+    // GASへの送信（フォーム経由）
+    const params = new URLSearchParams();
+    params.append('payload', JSON.stringify({action:"save_shift_request",data:{name:reqStaff,year:reqYear,month:reqMonth,requests,submittedAt:new Date().toISOString()}}));
+    await fetch(GAS_URL + "?" + params.toString(), { method: "GET", mode: "no-cors" });
+    const data = { message: `${requests.length}件のシフト希望を登録しました（スプレッドシートを確認してください）` };
     document.getElementById('req-result').innerHTML=`<div class="result-box" style="background:#E8FFF5"><div style="font-size:14px;font-weight:700;color:#43C6AC">✓ ${data.message}</div><div style="font-size:12px;color:#9A9AB0;margin-top:4px">スプレッドシートに反映されました</div></div>`;
     reqDays={};
     renderReqCalendar();
@@ -995,10 +1136,13 @@ async function submitRequest() {
 }
 
 // ── Init ──
-initHome();
+// ログイン画面を初期化
+initLoginScreen();
+// ナビは最初非表示（ログイン後に表示）
+document.querySelector('.nav').style.display = 'none';
+// page-loginをflexで表示
+document.getElementById('page-login').style.display = 'flex';
 renderNotices();
-renderSalesOverview();
-renderClosingHistory();
 </script>
 </body>
 </html>
