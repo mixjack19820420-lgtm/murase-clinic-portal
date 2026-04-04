@@ -366,10 +366,9 @@
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:14px;border-radius:4px;background:#FFE4E4;border:1.5px solid #FF6584"></div><span style="font-size:11px;color:#7A7A9A;font-weight:600">休</span></div>
-        <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:14px;border-radius:4px;background:#E4F4FF;border:1.5px solid #4facfe"></div><span style="font-size:11px;color:#7A7A9A;font-weight:600">有給</span></div>
-        <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:14px;border-radius:4px;background:#E4FFE4;border:1.5px solid #43C6AC"></div><span style="font-size:11px;color:#7A7A9A;font-weight:600">出勤</span></div>
-        <span style="font-size:11px;color:#7A7A9A">タップで切替</span>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:14px;border-radius:4px;background:#CCFFCC;border:1.5px solid #2D8A2D"></div><span style="font-size:11px;color:#7A7A9A;font-weight:600">○希望休</span></div>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:14px;border-radius:4px;background:#FFFAAA;border:1.5px solid #B8860B"></div><span style="font-size:11px;color:#7A7A9A;font-weight:600">○有給</span></div>
+        <span style="font-size:11px;color:#7A7A9A">タップで切替（もう一度で解除）</span>
       </div>
       <div class="cal-grid">
         <div class="cal-header">
@@ -485,9 +484,8 @@ const SHIFT_COLORS = {
 };
 
 const REQ_TYPES = [
-  { key:"希望休", label:"休", color:"#FF6584", bg:"#FFE4E4" },
-  { key:"有給", label:"有給", color:"#4facfe", bg:"#E4F4FF" },
-  { key:"希望出勤", label:"出勤", color:"#43C6AC", bg:"#E4FFE4" },
+  { key:"希望休", label:"○休", color:"#2D8A2D", bg:"#CCFFCC" },
+  { key:"有給",   label:"○有", color:"#B8860B", bg:"#FFFAAA" },
 ];
 
 // ── Navigation ──
@@ -1124,7 +1122,7 @@ function tapReqDay(ds) {
   const cnt = Object.keys(reqDays).length;
   const btn = document.getElementById('req-submit-btn');
   if (cnt > 0) {
-    btn.style.background = 'linear-gradient(135deg,#FF6584,#FF9BAD)';
+    btn.style.background = 'linear-gradient(135deg,#43A047,#66BB6A)';
     btn.textContent = cnt + '件の希望を申請する';
   } else {
     btn.style.background = '#DDDDEE';
