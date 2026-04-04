@@ -472,7 +472,7 @@ let goals = [
 let closingHistory = [];
 let manualCategory = "全て";
 let currentShiftWeek = 0;
-let reqStaff = "田中";
+let reqStaff = "";
 let reqYear = 2026; let reqMonth = 4;
 let reqDays = {};
 let currentPage = "home";
@@ -793,5 +793,424 @@ async function generateManual() {
     if (!match) throw new Error("JSON取得失敗: " + aiText.slice(0,100));
     const parsed = JSON.parse(match[0]);
     showAIResult(parsed, date, text);
+  } catch(e) {
+    document.getElementById('closing-loading').style.display = 'none';
+    document.getElementById('closing-btn').disabled = false;
+    document.getElementById('closing-result').innerHTML = `<div class="error-box">❌ ${e.message}</div>`;
+  }
+}
 
+// ── Closing: AI結果表示 ──
+let _lastAIParsed = null; // onclick内での引用符衝突を避けるためグローバルに保持
+let _lastAIDate = '';
 
+function showAIResult(parsed, date, text) {
+  document.getElementById('closing-loading').style.display = 'none';
+  document.getElementById('closing-btn').disabled = false;
+  _lastAIParsed = parsed;
+  _lastAIDate = date;
+  const resultEl = document.getElementById('closing-result');
+  resultEl.innerHTML = `
+    <div class="ai-result">
+      <div class="ai-result-header">
+        <div class="ai-result-label">✨ AI自動生成</div>
+        <div class="ai-result-title">${parsed.title}</div>
+        <div class="ai-result-cat">${parsed.category} · ${date}</div>
+      </div>
+      <div class="ai-result-body">
+        ${(parsed.points || []).map((p, i) => `
+          <div class="point-row">
+            <div class="point-num">${i+1}</div>
+            <div class="point-text">${p}</div>
+          </div>`).join('')}
+        ${parsed.notes ? `
+          <div class="note-box">
+            <div class="note-label">⚠️ 注意事項</div>
+            <div class="note-text">${parsed.notes}</div>
+          </div>` : ''}
+      </div>
+      <div class="ai-result-btns">
+        <button class="btn-cancel" onclick="document.getElementById('closing-result').innerHTML=''">破棄</button>
+        <button class="btn-add" onclick="saveManual(_lastAIParsed, _lastAIDate)">📖 マニュアルに追加</button>
+      </div>
+    </div>`;
+  closingHistory.unshift({ parsed, date, original: text });
+  renderClosingHistory();
+}
+
+function renderClosingHistory() {
+  const el = document.getElementById('closing-history');
+  if (!closingHistory.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div style="font-size:14px;font-weight:800;color:#1A1A3A;margin:20px 0 12px">📚 終礼履歴</div>
+    ${closingHistory.slice(0,5).map(h => `
+      <div class="card" style="margin-bottom:10px">
+        <div style="height:3px;background:linear-gradient(90deg,#4facfe,#00f2fe)"></div>
+        <div style="padding:12px 16px">
+          <div style="font-size:13px;font-weight:700;color:#1A1A3A">${h.parsed.title}</div>
+          <div style="font-size:11px;color:#9A9AB0;margin-top:3px">${h.parsed.category} · ${h.date}</div>
+        </div>
+      </div>`).join('')}`;
+}
+
+function saveManual(parsed, date) {
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch(e) { alert('保存エラー'); return; }
+  }
+  const catColors = { "診療":"#6C63FF","受付":"#F7971E","滅菌":"#43C6AC","滅菌・感染":"#43C6AC","感染":"#43C6AC","緊急対応":"#FF6584","その他":"#9A9AB0" };
+  const catIcons  = { "診療":"🦷","受付":"📞","滅菌":"🧼","滅菌・感染":"🧼","感染":"🧼","緊急対応":"🚨","その他":"📄" };
+  const color = catColors[parsed.category] || "#9A9AB0";
+  const icon  = catIcons[parsed.category]  || "📄";
+  manuals.unshift({ id: manuals.length+1, category: parsed.category, title: parsed.title, icon, updated: date, color,
+    content: (parsed.points||[]).join('\n'), notes: parsed.notes||'' });
+  document.getElementById('closing-result').innerHTML = `
+    <div class="result-box" style="background:#E4FFE4;border:1.5px solid #43C6AC;margin-bottom:14px">
+      <div style="font-size:15px;font-weight:800;color:#43C6AC">📖 マニュアルに追加しました！</div>
+      <div style="font-size:13px;color:#2A4A3A;margin-top:4px">「${parsed.title}」</div>
+    </div>`;
+  document.getElementById('manual-count').textContent = manuals.length + '件';
+}
+
+// ── Manual ──
+function renderManual() {
+  const cats = ['全て', ...new Set(manuals.map(m => m.category))];
+  document.getElementById('manual-cats').innerHTML = cats.map(c => `
+    <button onclick="setManualCat('${c}')" style="
+      padding:7px 14px;border-radius:20px;border:none;white-space:nowrap;cursor:pointer;
+      background:${manualCategory===c?'linear-gradient(135deg,#a18cd1,#fbc2eb)':'white'};
+      color:${manualCategory===c?'white':'#5A5A7A'};font-size:12px;font-weight:700;
+      box-shadow:${manualCategory===c?'0 4px 12px rgba(161,140,209,.4)':'0 2px 8px rgba(0,0,0,.07)'};
+    ">${c}</button>`).join('');
+  const filtered = manualCategory === '全て' ? manuals : manuals.filter(m => m.category === manualCategory);
+  document.getElementById('manual-list').innerHTML = filtered.map(m => `
+    <div class="card" style="margin-bottom:12px;cursor:pointer" onclick="showManualDetail(${m.id})">
+      <div style="height:4px;background:${m.color}"></div>
+      <div style="padding:14px 16px;display:flex;gap:12px;align-items:center">
+        <div style="width:42px;height:42px;border-radius:14px;background:${m.color}22;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${m.icon}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:#1A1A3A">${m.title}</div>
+          <div style="font-size:11px;color:#9A9AB0;margin-top:3px">${m.category} · 更新: ${m.updated}</div>
+        </div>
+        <div style="font-size:18px;color:#CCCCDD">›</div>
+      </div>
+    </div>`).join('');
+  document.getElementById('manual-count').textContent = manuals.length + '件';
+}
+
+function setManualCat(cat) { manualCategory = cat; renderManual(); }
+
+function showManualDetail(id) {
+  const m = manuals.find(m => m.id === id);
+  if (!m) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;padding:24px;width:100%;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:17px;font-weight:800;color:#1A1A3A">${m.icon} ${m.title}</div>
+        <button onclick="document.querySelector('.overlay').remove()" style="background:#F4F6FB;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer">×</button>
+      </div>
+      <span style="font-size:11px;font-weight:700;color:${m.color};background:${m.color}22;padding:4px 10px;border-radius:8px">${m.category}</span>
+      <div style="font-size:14px;color:#2A2A4A;line-height:1.8;margin-top:14px">
+        ${m.content ? m.content.split('\n').map(l=>`<div>${l}</div>`).join('') : '<div style="color:#9A9AB0">内容未登録</div>'}
+      </div>
+      ${m.notes ? `<div class="note-box" style="margin-top:14px"><div class="note-label">⚠️ 注意事項</div><div class="note-text">${m.notes}</div></div>` : ''}
+    </div>`;
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+// ── Shift ──
+const SHIFT_START_DATE = new Date(2026, 3, 6); // 4月6日
+const DAY_NAMES_JP = ['日','月','火','水','木','金','土'];
+
+// サンプルシフトパターン（実際はGASスプレッドシートから取得）
+const SAMPLE_SHIFT = {
+  '院長':   ['09:00-18:00','09:00-18:00','09:00-18:00','休','09:00-18:00','09:00-14:00','休'],
+  '伊藤':   ['09:00-18:00','09:00-18:00','休','09:00-18:00','09:00-18:00','09:00-14:00','休'],
+  '堀':     ['09:00-18:00','休','09:00-18:00','09:00-18:00','09:00-18:00','09:00-14:00','休'],
+  '長谷川': ['09:00-18:00','09:00-18:00','09:00-14:00','09:00-18:00','休','09:00-14:00','休'],
+  '岡部':   ['休','09:00-18:00','09:00-18:00','09:00-18:00','09:00-18:00','09:00-14:00','休'],
+  '宮田':   ['09:00-18:00','09:00-18:00','休','09:00-18:00','09:00-18:00','09:00-14:00','休'],
+  '牧元':   ['09:00-18:00','休','09:00-18:00','09:00-18:00','09:00-18:00','09:00-14:00','休'],
+  '島津':   ['09:00-18:00','09:00-18:00','09:00-18:00','休','09:00-18:00','09:00-14:00','休'],
+  '青柳':   ['09:00-18:00','09:00-18:00','09:00-18:00','09:00-18:00','休','09:00-14:00','休'],
+  '倉橋':   ['09:00-18:00','09:00-18:00','休','09:00-18:00','09:00-18:00','09:00-14:00','休'],
+};
+
+function renderShift() {
+  const weeks = [[],[],[],[]];
+  for (let i = 0; i < 28; i++) {
+    const d = new Date(SHIFT_START_DATE); d.setDate(d.getDate() + i);
+    const wi = Math.floor(i / 7);
+    if (wi < 4) weeks[wi].push(d);
+  }
+
+  // 週タブ
+  document.getElementById('week-tabs').innerHTML = weeks.map((w, wi) => {
+    const s = w[0], e = w[w.length-1];
+    const label = (s.getMonth()+1)+'/'+s.getDate()+'〜'+(e.getMonth()+1)+'/'+e.getDate();
+    const active = wi === currentShiftWeek;
+    return `<button class="week-tab" onclick="changeShiftWeek(${wi})" style="
+      background:${active?'linear-gradient(135deg,#F7971E,#FFD200)':'white'};
+      color:${active?'white':'#5A5A7A'};
+      box-shadow:${active?'0 4px 12px rgba(247,151,30,.4)':'0 2px 8px rgba(0,0,0,.07)'};
+    ">${label}</button>`;
+  }).join('');
+
+  // 凡例
+  document.getElementById('shift-legend').innerHTML = Object.entries(SHIFT_COLORS).map(([k,v]) =>
+    `<div style="display:flex;align-items:center;gap:5px">
+      <div style="width:12px;height:12px;border-radius:3px;background:${v.bg};border:1px solid ${v.text}44"></div>
+      <span style="font-size:11px;color:#7A7A9A;font-weight:600">${v.label}</span>
+    </div>`).join('');
+
+  // 日別シフト
+  const week = weeks[currentShiftWeek];
+  document.getElementById('shift-days').innerHTML = week.map(date => {
+    const dow = date.getDay();
+    const dateStr = (date.getMonth()+1)+'/'+date.getDate()+'（'+DAY_NAMES_JP[dow]+'）';
+    const isSun = dow === 0, isSat = dow === 6;
+    const hdrBg = isSun ? 'linear-gradient(90deg,#FF9BAD,#FFB3C1)' : isSat ? 'linear-gradient(90deg,#FFD200,#FFDF60)' : 'linear-gradient(90deg,#F4F6FB,#EEEEF8)';
+    const hdrColor = isSun ? 'white' : isSat ? '#5A4A00' : '#3A3A5A';
+    const badge = isSun ? '<span class="shift-day-badge" style="background:#FF9BAD44;color:#FF6584">休診</span>' :
+                  isSat ? '<span class="shift-day-badge" style="background:#FFD20044;color:#B87A00">午前診</span>' :
+                          '<span class="shift-day-badge" style="background:#6C63FF22;color:#6C63FF">通常診療</span>';
+    const rows = staffList.map(s => {
+      const pattern = SAMPLE_SHIFT[s.colName] || [];
+      const shiftKey = pattern[dow] || '休';
+      const sc = SHIFT_COLORS[shiftKey] || SHIFT_COLORS['休'];
+      return `<div class="shift-row">
+        <div class="shift-mini-avatar" style="background:${s.color}22;color:${s.color}">${s.name[0]}</div>
+        <div class="shift-name">${s.name.slice(0,4)}</div>
+        <span class="shift-badge" style="background:${sc.bg};color:${sc.text}">${sc.label}</span>
+        ${shiftKey !== '休' ? `<span class="shift-time">${shiftKey}</span>` : ''}
+      </div>`;
+    }).join('');
+    return `<div class="shift-day">
+      <div class="shift-day-header" style="background:${hdrBg}">
+        <span class="shift-day-label" style="color:${hdrColor}">${dateStr}</span>${badge}
+      </div>
+      <div class="shift-day-body">${rows}</div>
+    </div>`;
+  }).join('');
+}
+
+function changeShiftWeek(wi) { currentShiftWeek = wi; renderShift(); }
+
+// ── Staff ──
+function renderStaff() {
+  document.getElementById('staff-list').innerHTML = staffList.map(s => `
+    <div class="card" style="margin-bottom:10px">
+      <div style="padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <div style="width:44px;height:44px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:white;position:relative;flex-shrink:0">
+          ${s.name[0]}
+          ${s.admin ? '<div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:#FFD200;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:9px">★</div>' : ''}
+        </div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:700;color:#1A1A3A">${s.name}</div>
+          <div style="font-size:12px;color:#9A9AB0;margin-top:2px">${s.role}</div>
+        </div>
+        ${currentUser && currentUser.admin ? `<button onclick="editStaffPin(${s.id})" style="background:#F4F6FB;border:none;border-radius:12px;padding:6px 12px;color:#5A5A7A;font-size:12px;font-weight:700;cursor:pointer">PIN変更</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function showAddStaff() {
+  if (!currentUser || !currentUser.admin) { alert('管理者のみ操作できます'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;padding:24px;width:100%">
+      <div style="font-size:17px;font-weight:800;color:#1A1A3A;margin-bottom:16px">➕ スタッフ追加</div>
+      <div class="form-section" style="margin-bottom:10px"><div class="form-label">名前</div><input id="ns-name" class="form-input" type="text" placeholder="例：山田太郎"></div>
+      <div class="form-section" style="margin-bottom:10px"><div class="form-label">役職</div><input id="ns-role" class="form-input" type="text" placeholder="例：歯科衛生士"></div>
+      <div class="form-section" style="margin-bottom:16px"><div class="form-label">PIN（4桁）</div><input id="ns-pin" class="form-input" type="number" placeholder="例：1010"></div>
+      <button onclick="addStaff()" class="btn-primary" style="background:linear-gradient(135deg,#a18cd1,#fbc2eb);box-shadow:0 6px 20px rgba(161,140,209,.4)">追加する</button>
+      <button onclick="document.querySelector('.overlay').remove()" style="width:100%;margin-top:8px;padding:12px;border-radius:14px;background:#F4F6FB;border:none;color:#7A7A9A;font-weight:700;cursor:pointer">キャンセル</button>
+    </div>`;
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+function addStaff() {
+  const name = document.getElementById('ns-name').value.trim();
+  const role = document.getElementById('ns-role').value.trim();
+  const pin  = document.getElementById('ns-pin').value.trim();
+  if (!name || !role || !/^\d{4}$/.test(pin)) { alert('全項目を入力してください（PIN4桁の数字）'); return; }
+  const clrs = ['#6C63FF','#FF6584','#43C6AC','#F7971E','#4facfe','#a18cd1','#f6416c','#00b09b','#f093fb','#4481eb'];
+  staffList.push({ id: staffList.length+1, name, colName: name.slice(0,3), role, color: clrs[staffList.length%clrs.length], admin: false, pin });
+  document.querySelector('.overlay').remove();
+  renderStaff();
+}
+
+function editStaffPin(id) {
+  const s = staffList.find(s => s.id === id);
+  if (!s) return;
+  const newPin = prompt(s.name + ' の新しいPIN（4桁）を入力');
+  if (newPin === null) return;
+  if (!/^\d{4}$/.test(newPin)) { alert('4桁の数字を入力してください'); return; }
+  s.pin = newPin;
+  renderStaff();
+  alert('PINを変更しました');
+}
+
+// ── Request ──
+function changeReqMonth(delta) {
+  reqMonth += delta;
+  if (reqMonth > 12) { reqMonth = 1; reqYear++; }
+  if (reqMonth < 1)  { reqMonth = 12; reqYear--; }
+  reqDays = {};
+  document.getElementById('req-month-label').textContent = reqYear + '年 ' + reqMonth + '月';
+  renderRequest();
+}
+
+function renderRequest() {
+  if (currentUser && !reqStaff) reqStaff = currentUser.colName;
+
+  // 申請者ボタン
+  document.getElementById('req-staff-btns').innerHTML = staffList.map(s => {
+    const sel = reqStaff === s.colName;
+    const canSel = currentUser && (currentUser.admin || currentUser.colName === s.colName);
+    return `<button onclick="selectReqStaff('${s.colName}')" ${!canSel?'disabled':''} style="
+      padding:6px 14px;border-radius:20px;cursor:${canSel?'pointer':'default'};
+      border:1.5px solid ${sel?s.color:'#E8EEFF'};
+      background:${sel?s.color+'22':'white'};
+      color:${sel?s.color:(canSel?'#5A5A7A':'#CCCCDD')};
+      font-size:12px;font-weight:${sel?'800':'500'};
+    ">${s.name}</button>`;
+  }).join('');
+
+  // カレンダー
+  const first = new Date(reqYear, reqMonth-1, 1);
+  const last  = new Date(reqYear, reqMonth, 0).getDate();
+  const offset = (first.getDay()+6)%7; // 月曜始まり
+  let cells = [];
+  for (let i = 0; i < offset; i++) cells.push('<div class="cal-cell"></div>');
+  for (let d = 1; d <= last; d++) {
+    const ds = reqYear+'/'+String(reqMonth).padStart(2,'0')+'/'+String(d).padStart(2,'0');
+    const dow = new Date(reqYear, reqMonth-1, d).getDay();
+    const t = reqDays[ds] ? REQ_TYPES.find(r => r.key === reqDays[ds]) : null;
+    const dColor = t ? t.color : (dow===0?'#FF6584': dow===6?'#F7971E':'#1A1A3A');
+    cells.push(`
+      <div class="cal-cell" onclick="tapReqDay('${ds}')" style="background:${t?t.bg:'transparent'}">
+        <div class="cal-date" style="color:${dColor}">${d}</div>
+        ${t?`<div class="cal-mark" style="color:${t.color}">${t.label}</div>`:''}
+      </div>`);
+  }
+  let calHtml = '';
+  for (let i = 0; i < cells.length; i += 7)
+    calHtml += '<div class="cal-week">'+cells.slice(i,i+7).join('')+'</div>';
+  document.getElementById('req-calendar').innerHTML = calHtml;
+  updateReqSummary();
+}
+
+function selectReqStaff(colName) {
+  if (currentUser && (currentUser.admin || currentUser.colName === colName)) {
+    reqStaff = colName;
+    renderRequest();
+  }
+}
+
+function tapReqDay(ds) {
+  const keys = REQ_TYPES.map(t => t.key);
+  const cur = reqDays[ds];
+  const idx = cur ? keys.indexOf(cur) : -1;
+  if (idx < keys.length-1) reqDays[ds] = keys[idx+1];
+  else delete reqDays[ds];
+  renderRequest();
+  const cnt = Object.keys(reqDays).length;
+  const btn = document.getElementById('req-submit-btn');
+  if (cnt > 0) {
+    btn.style.background = 'linear-gradient(135deg,#FF6584,#FF9BAD)';
+    btn.textContent = cnt + '件の希望を申請する';
+  } else {
+    btn.style.background = '#DDDDEE';
+    btn.textContent = '日付をタップして希望を選んでください';
+  }
+}
+
+function updateReqSummary() {
+  const el = document.getElementById('req-summary');
+  const entries = Object.entries(reqDays);
+  if (!entries.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="summary-card">
+      <div style="font-size:13px;font-weight:800;color:#1A1A3A;margin-bottom:10px">📋 申請予定 (${entries.length}件)</div>
+      ${entries.sort((a,b)=>a[0].localeCompare(b[0])).map(([ds,type]) => {
+        const t = REQ_TYPES.find(r=>r.key===type);
+        const label = ds.replace(/\d+\/(\d+)\/(\d+)/,(_,m,d)=>m+'/'+d);
+        return `<div class="summary-row">
+          <span style="font-size:12px;font-weight:700;background:${t.bg};color:${t.color};padding:3px 8px;border-radius:8px">${type}</span>
+          <span style="font-size:13px;color:#3A3A5A">${label}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function submitRequest() {
+  const entries = Object.entries(reqDays);
+  if (!entries.length) return;
+  const staffInfo = staffList.find(s => s.colName === reqStaff);
+  if (!staffInfo) { alert('申請者を選択してください'); return; }
+  const btn = document.getElementById('req-submit-btn');
+  const resEl = document.getElementById('req-result');
+  btn.disabled = true; btn.textContent = '送信中...'; resEl.innerHTML = '';
+  const body = {
+    action: 'save_shift_request',
+    data: {
+      name: staffInfo.name,
+      colName: staffInfo.colName,
+      year: reqYear,
+      month: reqMonth,
+      submittedAt: new Date().toISOString(),
+      requests: entries.map(([date, type]) => ({ date, type }))
+    }
+  };
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    resEl.innerHTML = `
+      <div class="result-box" style="background:#E4FFE4;border:1.5px solid #43C6AC">
+        <div style="font-size:15px;font-weight:800;color:#43C6AC">✅ 申請完了！</div>
+        <div style="font-size:13px;color:#2A4A3A;margin-top:4px">${data.message||''}</div>
+        ${data.debug?`<div style="font-size:11px;color:#7A9A7A;margin-top:4px">${data.debug}</div>`:''}
+      </div>`;
+    reqDays = {};
+    renderRequest();
+    btn.style.background = '#DDDDEE';
+    btn.textContent = '日付をタップして希望を選んでください';
+  } catch(e) {
+    resEl.innerHTML = `
+      <div class="result-box" style="background:#FFE4E4;border:1.5px solid #FF6584">
+        <div style="font-size:15px;font-weight:800;color:#FF6584">❌ エラー</div>
+        <div style="font-size:13px;color:#4A2A2A;margin-top:4px">${e.message}</div>
+      </div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── 初期化 ──
+window.addEventListener('DOMContentLoaded', function() {
+  initLoginScreen();
+  const today = new Date();
+  document.getElementById('closing-date').value = today.toISOString().slice(0,10);
+  reqYear  = today.getFullYear();
+  reqMonth = today.getMonth()+1;
+  document.getElementById('req-month-label').textContent = reqYear + '年 ' + reqMonth + '月';
+  document.getElementById('greeting-date').textContent =
+    today.getFullYear() + '年' + (today.getMonth()+1) + '月' + today.getDate() + '日（' +
+    ['日','月','火','水','木','金','土'][today.getDay()] + '）';
+});
+
+</script>
+</body>
+</html>
